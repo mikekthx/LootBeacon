@@ -24,7 +24,8 @@ local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track
 -- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
 -- the bottom rod's lower half makes one clean rod. Values are rows of the art; the cut follows the long bar,
 -- which leaves the diamond end caps half a row taller than the original.
-local ROD_ATLAS, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 40
+local ROD_ATLAS, ROD_ART_WIDTH, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 300, 40
+local ROD_LEFT, ROD_RIGHT = 9.7, 284.7 -- the rod's own columns; the art has more empty space on its right
 local ROD_UPPER = { 2.9, 7.07 } -- the top rod, from the shadow above it down through its bright highlight
 local ROD_LOWER = { 34, 38.6 } -- the bottom rod, from just under its highlight down through the shadow below it
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
@@ -132,14 +133,17 @@ local frameLayout -- the layout ApplyFrameStyle last put on the panel
 
 -- Blizzard's corners are tall, so on a short panel the top pair would poke out past the bottom edge and
 -- vice versa. Trim each one to meet its partner halfway, keeping the end that sits on the panel's edge.
+-- Never let one reach past CORNER_REACH, either: the corner art has a notch in its post about 44 units in,
+-- and the plain edge art fills the post just as well from there.
 local CORNER_SIDES = { TopLeftCorner = "top", TopRightCorner = "top", BottomLeftCorner = "bottom", BottomRightCorner = "bottom" }
+local CORNER_REACH = 42
 
 local function FitCorners(height)
 	for name, side in pairs(CORNER_SIDES) do
 		local pieceLayout, piece = frameLayout[name], panel.NineSlice[name]
 		local info = C_Texture.GetAtlasInfo(pieceLayout.atlas)
 		if piece and info then
-			local shown = math.min(info.height, height / 2 + math.abs(pieceLayout.y or 0))
+			local shown = math.min(info.height, math.abs(pieceLayout.y or 0) + math.min(height / 2, CORNER_REACH))
 			local first, last = 0, 1 -- the art's rows, from the piece's top to its bottom
 			if pieceLayout.flipVertical then first, last = 1, 0 end
 			local span = (last - first) * shown / info.height
@@ -308,8 +312,8 @@ end
 local function RodHalf(divider, rows, point)
 	local half = divider:CreateTexture(nil, "BACKGROUND")
 	half:SetAtlas(ROD_ATLAS)
-	half:SetTexCoord(0, 1, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
-	half:SetSize(ROW_WIDTH, rows[2] - rows[1])
+	half:SetTexCoord(ROD_LEFT / ROD_ART_WIDTH, ROD_RIGHT / ROD_ART_WIDTH, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
+	half:SetSize(ROD_RIGHT - ROD_LEFT, rows[2] - rows[1])
 	half:SetPoint(point, divider, "CENTER")
 	SmoothScaling(half)
 	return half
