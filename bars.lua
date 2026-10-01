@@ -20,6 +20,9 @@ local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
 local BUTTON_SIZE, BUTTON_GAP = 24, 2
 local BUTTON_AREA = 4 * BUTTON_SIZE + 3 * BUTTON_GAP -- always room for Need, Greed, Disenchant and Pass
 local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track and fill inset
+-- Our timer is narrower than Blizzard's 238, so its art is drawn in three pieces: rounded ends this wide,
+-- kept at their natural size, and a middle that stretches.
+local TIMER_CAP, TIMER_FILL_CAP = 7, 5
 -- The divider comes from the objective tracker's header art (300x40): the same metal rod along its top and
 -- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
 -- the bottom rod's lower half makes one clean rod. Values are rows of the art; the cut follows the long bar,
@@ -210,7 +213,12 @@ local function UpdateTimer(row)
 	if record.duration and record.duration > 0 then
 		fraction = math.min(1, math.max(0, TimeLeft(record) / record.duration))
 	end
-	row.timer.fill:SetWidth(math.max(1, (row.timer:GetWidth() - 2 * TIMER_INSET) * fraction))
+	local width = math.max(1, (row.timer:GetWidth() - 2 * TIMER_INSET) * fraction)
+	row.timer.fill:SetWidth(width)
+	-- Nearly empty? Then the fill's two ends share what's left.
+	local cap = math.min(TIMER_FILL_CAP, width / 2)
+	row.timer.fillArt.left:SetWidth(cap)
+	row.timer.fillArt.right:SetWidth(cap)
 end
 
 local function HideTooltip()
@@ -319,6 +327,30 @@ local function RodHalf(divider, rows, point)
 	return half
 end
 
+-- Draws `atlas` over `region` (on `owner`, in `layer`) as a left end and a right end `cap` units wide,
+-- at the art's natural size, with only the middle stretched. Returns the three textures.
+local function ThreeSlice(owner, region, layer, atlas, cap)
+	local info = C_Texture.GetAtlasInfo(atlas)
+	local edge = cap / (info and info.width or TIMER_HEIGHT)
+	local slices = {}
+	for name, coords in pairs({ left = { 0, edge }, middle = { edge, 1 - edge }, right = { 1 - edge, 1 } }) do
+		local slice = owner:CreateTexture(nil, layer)
+		slice:SetAtlas(atlas)
+		slice:SetTexCoord(coords[1], coords[2], 0, 1)
+		SmoothScaling(slice) -- snapped separately, the pieces could part by a pixel
+		slices[name] = slice
+	end
+	slices.left:SetPoint("TOPLEFT", region, "TOPLEFT")
+	slices.left:SetPoint("BOTTOMLEFT", region, "BOTTOMLEFT")
+	slices.left:SetWidth(cap)
+	slices.right:SetPoint("TOPRIGHT", region, "TOPRIGHT")
+	slices.right:SetPoint("BOTTOMRIGHT", region, "BOTTOMRIGHT")
+	slices.right:SetWidth(cap)
+	slices.middle:SetPoint("TOPLEFT", slices.left, "TOPRIGHT")
+	slices.middle:SetPoint("BOTTOMRIGHT", slices.right, "BOTTOMLEFT")
+	return slices
+end
+
 local function CreateRow()
 	local row = CreateFrame("Frame", nil, panel)
 	row:SetSize(ROW_WIDTH, ROW_HEIGHT)
@@ -376,16 +408,15 @@ local function CreateRow()
 	timer:SetHeight(TIMER_HEIGHT)
 	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, timerLift)
 	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + 8), ICON_INSET + timerLift)
-	timer.background = timer:CreateTexture(nil, "BACKGROUND")
-	timer.background:SetAllPoints(timer)
-	timer.background:SetAtlas("lootroll-timer-background")
-	-- Native-height fill, inset like Blizzard's, so it stays inside the track!
+	timer.background = ThreeSlice(timer, timer, "BACKGROUND", "lootroll-timer-background", TIMER_CAP)
+	-- Native-height fill, inset like Blizzard's, so it stays inside the track! timer.fill is just its
+	-- outline; UpdateTimer sizes it and the art follows.
+	local fillInfo = C_Texture.GetAtlasInfo("lootroll-timer-fill")
 	timer.fill = timer:CreateTexture(nil, "ARTWORK")
-	timer.fill:SetAtlas("lootroll-timer-fill", true)
+	timer.fill:SetHeight(fillInfo and fillInfo.height or TIMER_HEIGHT - 2 * TIMER_INSET)
 	timer.fill:SetPoint("LEFT", timer, "LEFT", TIMER_INSET, 0)
-	timer.border = timer:CreateTexture(nil, "OVERLAY")
-	timer.border:SetAllPoints(timer)
-	timer.border:SetAtlas("lootroll-timer-border")
+	timer.fillArt = ThreeSlice(timer, timer.fill, "ARTWORK", "lootroll-timer-fill", TIMER_FILL_CAP)
+	timer.border = ThreeSlice(timer, timer, "OVERLAY", "lootroll-timer-border", TIMER_CAP)
 	row.timer = timer
 
 	-- The metal rod between rows; its two halves meet on the divider's centre, which Layout puts in the gap.
