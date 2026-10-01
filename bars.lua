@@ -306,7 +306,7 @@ end
 -- One half of the divider rod: `rows` of the header art, hung above or below the divider's centre.
 local function RodHalf(divider, rows, point)
 	local half = divider:CreateTexture(nil, "BACKGROUND")
-	half:SetAtlas(ROD_ATLAS)
+	half:SetAtlas(ROD_ATLAS, false, "TRILINEAR") -- blend when drawn small, so the thin highlight never drops out
 	half:SetTexCoord(0, 1, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
 	half:SetSize(ROW_WIDTH, rows[2] - rows[1])
 	half:SetPoint(point, divider, "CENTER")
