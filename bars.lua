@@ -306,17 +306,22 @@ local function CreateRow()
 	row:SetSize(ROW_WIDTH, ROW_HEIGHT)
 
 	-- A real item button: icon plus quality border, just like the character sheet!
+	-- Layout sizes and places it, on whole screen pixels.
 	local icon = CreateFrame("ItemButton", nil, row)
-	icon:SetPoint("LEFT", row, "LEFT", 0, 0)
 	icon:ClearNormalTexture()
 	icon.row = row
+	-- Lay the art exactly over the button, rather than centring its own 37x37 on a half pixel.
+	icon.icon:ClearAllPoints()
+	icon.icon:SetAllPoints(icon)
+	icon.IconBorder:ClearAllPoints()
+	icon.IconBorder:SetAllPoints(icon)
 	-- Round off the icon's corners so they never peek past the border!
 	icon.iconMask = icon:CreateMaskTexture()
 	icon.iconMask:SetTexture("Interface\\Common\\common-iconmask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
 	icon.iconMask:SetAllPoints(icon.icon)
 	icon.icon:AddMaskTexture(icon.iconMask)
 	icon.bind = icon:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
-	icon.bind:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT", 0, 0)
+	icon.bind:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT", 2, 1) -- just inside the quality border
 	icon.bind:SetTextColor(1, 0.3, 0.1)
 	icon.bind:SetText(L["BoP"])
 	icon:SetScript("OnEnter", ShowItemTooltip)
@@ -484,6 +489,11 @@ function Layout()
 		else
 			PixelUtil.SetPoint(row, "TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(header == "top" and HEADER_HEIGHT or EDGE_PADDING))
 		end
+		-- Whole screen pixels for the item button, or its thin border rounds thicker on one side than another.
+		-- Redone every layout, since what counts as a whole pixel changes with the scale.
+		PixelUtil.SetSize(row.icon, ICON_SIZE, ICON_SIZE)
+		row.icon:ClearAllPoints()
+		PixelUtil.SetPoint(row.icon, "TOPLEFT", row, "TOPLEFT", 0, -ICON_INSET)
 		row.divider:SetShown(index < #ordered)
 		row:Show()
 		previous = row
