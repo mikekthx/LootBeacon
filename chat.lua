@@ -1,5 +1,5 @@
-local addonName, ns = ... -- luacheck: ignore 211
-local L = ns.L -- luacheck: ignore 211
+local addonName, ns = ...
+local L = ns.L
 
 local Chat = {}
 ns.Chat = Chat
@@ -92,3 +92,127 @@ function Chat.GetOutputFrame()
 	end
 	return DEFAULT_CHAT_FRAME
 end
+
+-- Every roll wears its own color!
+local TAG_COLORS = {
+	need = "ffff2020", greed = "ffffff00", transmog = "ffff80ff", disenchant = "ffff00ff", allPassed = "ff9d9d9d",
+}
+local ROLL_ICONS = {
+	need = "lootroll-icon-need", greed = "lootroll-icon-greed", transmog = "lootroll-icon-transmog",
+	disenchant = "lootroll-icon-greed", pass = "lootroll-icon-pass",
+}
+
+local function RollWord(choice)
+	if choice == "need" then return NEED end
+	if choice == "transmog" then return TRANSMOGRIFICATION end
+	if choice == "disenchant" then return ROLL_DISENCHANT end
+	return GREED
+end
+
+-- {curly} placeholders let translators put the words in whatever order they like!
+local function Fill(template, values)
+	return (template:gsub("{(%a+)}", function(key) return values[key] or "" end))
+end
+
+local function Tag(colorKey, text, record)
+	return ("|c%s|Haddon:%s:%s:%s|h[%s]|h|r"):format(TAG_COLORS[colorKey], addonName,
+		tostring(record.encounterID or 0), tostring(record.key), text)
+end
+
+function Chat.FormatSummary(record)
+	local item = record.link or UNKNOWN
+	local winner = record.winner
+	if record.allPassed or not winner then
+		return Tag("allPassed", LOOT_HISTORY_ALL_PASSED, record) .. " " .. item
+	end
+	local choice = ns.ChoiceForState(winner.state, record.canDisenchant) or "greed"
+	local label = Fill(L["{roll} - {value}"], { roll = RollWord(choice), value = tostring(winner.roll or "?") })
+	return Fill(L["{tag} {name} won {item}"], {
+		tag = Tag(choice, label, record),
+		name = ns.ClassColoredName(winner.playerName, winner.playerClass),
+		item = item,
+	})
+end
+
+function Chat.FormatTimeout(record)
+	local label = "[" .. L["Roll result unavailable"] .. "]"
+	if type(record.key) == "number" then
+		label = ("|c%s|HlootHistory:%d|h%s|h|r"):format(TAG_COLORS.allPassed, record.key, label)
+	end
+	return label .. " " .. (record.link or UNKNOWN)
+end
+
+local function Announce(text)
+	if LootBeaconOptions and LootBeaconOptions.summariesEnabled then
+		Chat.GetOutputFrame():AddMessage(text)
+	end
+end
+
+ns.Tracker:RegisterCallback("Resolved", function(record) Announce(Chat.FormatSummary(record)) end)
+ns.Tracker:RegisterCallback("TimedOut", function(record) Announce(Chat.FormatTimeout(record)) end)
+
+-- Click the tag, get the whole story!
+local shownKey
+
+local function TitleFromLink(link)
+	if not link then return UNKNOWN end
+	return (link:gsub("|H.-|h%[(.-)%]|h", "%1"))
+end
+
+local function RollLine(roll, choice)
+	local line = CreateAtlasMarkup(ROLL_ICONS[choice], 14, 14) .. " " .. (roll.roll and tostring(roll.roll) or "")
+		.. "  " .. ns.ClassColoredName(roll.playerName, roll.playerClass)
+	if roll.isWinner then
+		line = line .. " " .. CreateAtlasMarkup("lootroll-icon-checkmark", 14, 14)
+	end
+	return line
+end
+
+function Chat.ShowRollTooltip(encounterID, key)
+	local tooltip = ItemRefTooltip
+	if tooltip:IsShown() and shownKey == key then
+		tooltip:Hide()
+		return
+	end
+	local info = C_LootHistory.GetSortedInfoForDrop(encounterID, key)
+	local record = ns.Tracker:GetRecord(key)
+	tooltip:ClearHandlerInfo()
+	tooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
+	tooltip:AddLine(TitleFromLink((info and info.itemHyperlink) or (record and record.link)))
+	if not info then
+		tooltip:AddLine(L["Roll details are no longer available."], 1, 1, 1, true)
+	else
+		local passed = {}
+		for _, roll in ipairs(info.rollInfos or {}) do
+			local choice = ns.ChoiceForState(roll.state, true)
+			if choice == "pass" then
+				passed[#passed + 1] = roll
+			elseif choice then
+				tooltip:AddLine(RollLine(roll, choice), 1, 1, 1)
+			end
+		end
+		if #passed > 0 then
+			tooltip:AddLine(LOOT_HISTORY_PASSED)
+			for _, roll in ipairs(passed) do
+				tooltip:AddLine(RollLine(roll, "pass"), 1, 1, 1)
+			end
+		end
+	end
+	tooltip:Show()
+	shownKey = key
+end
+
+ItemRefTooltip:HookScript("OnHide", function() shownKey = nil end)
+
+local function OnSetItemRef(_, link)
+	local encounterID, key = tostring(link):match("^addon:" .. addonName .. ":(%d+):(%d+)$")
+	if not encounterID then return end
+	encounterID, key = tonumber(encounterID), tonumber(key)
+	if IsShiftKeyDown() then
+		SetLootHistoryFrameToEncounter(encounterID)
+	else
+		Chat.ShowRollTooltip(encounterID, key)
+	end
+end
+
+EventRegistry:RegisterCallback("SetItemRef", OnSetItemRef, Chat)
