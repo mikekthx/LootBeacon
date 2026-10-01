@@ -95,6 +95,14 @@ function methods:SetLootRollItem(rollID) self._lootRollItem = rollID end
 function methods:SetHyperlink(link) self._hyperlink = link end
 function methods:AddMessage(text) table.insert(self._messages, text) end
 function methods:SetTitle(text) self._title = text end
+function methods:CreateMaskTexture() return NewWidget("MaskTexture", nil, self) end
+function methods:AddMaskTexture(mask)
+	self._masks = self._masks or {}
+	table.insert(self._masks, mask)
+end
+function methods:SetTexCoord(...) self._texCoord = { ... } end
+function methods:SetSnapToPixelGrid(snap) self._snapToPixelGrid = snap end
+function methods:SetTexelSnappingBias(bias) self._texelSnappingBias = bias end
 
 local function Recorder(name)
 	return function(...)
@@ -149,11 +157,42 @@ function M.reset()
 	G.C_Timer = {
 		After = function(seconds, fn) table.insert(M.timers, { at = M.now + seconds, fn = fn }) end,
 	}
-	G.CreateFrame = function(kind, name, parent)
+	G.CreateFrame = function(kind, name, parent, template)
 		local widget = NewWidget(kind, name, parent)
 		if name then G[name] = widget end
+		if kind == "ItemButton" then
+			widget.icon = NewWidget("Texture", nil, widget) -- the intrinsic's parentKey="icon"
+		end
+		if template == "DefaultPanelFlatTemplate" then
+			widget.NineSlice = NewWidget("Frame", nil, widget)
+			widget.Bg = NewWidget("Frame", nil, widget)
+			widget.TitleContainer = NewWidget("Frame", nil, widget)
+		end
 		return widget
 	end
+	-- Blizzard's no-portrait panel layout, as this client adjusts it (NineSliceLayoutOverrides).
+	G.NineSliceLayouts = {
+		ButtonFrameTemplateNoPortrait = {
+			disableSharpening = true,
+			TopLeftCorner = { layer = "OVERLAY", atlas = "UI-Frame-Metal-CornerTopLeft", x = -8, y = 16 },
+			TopRightCorner = { layer = "OVERLAY", atlas = "UI-Frame-Metal-CornerTopRight", x = 2, y = 16 },
+			BottomLeftCorner = { layer = "OVERLAY", atlas = "UI-Frame-Metal-CornerBottomLeft", x = -8, y = -8 },
+			BottomRightCorner = { layer = "OVERLAY", atlas = "UI-Frame-Metal-CornerBottomRight", x = 2, y = -8 },
+			TopEdge = { layer = "OVERLAY", atlas = "_UI-Frame-Metal-EdgeTop" },
+			BottomEdge = { layer = "OVERLAY", atlas = "_UI-Frame-Metal-EdgeBottom" },
+			LeftEdge = { layer = "OVERLAY", atlas = "!UI-Frame-Metal-EdgeLeft" },
+			RightEdge = { layer = "OVERLAY", atlas = "!UI-Frame-Metal-EdgeRight" },
+		},
+	}
+	G.NineSliceUtil = {
+		ApplyLayout = function(container, layout)
+			M.calls.ApplyLayout = M.calls.ApplyLayout or {}
+			table.insert(M.calls.ApplyLayout, { container, layout })
+		end,
+	}
+	G.C_Texture = {
+		GetAtlasInfo = function(atlas) return { tilesHorizontally = atlas:sub(1, 1) == "_", tilesVertically = atlas:sub(1, 1) == "!" } end,
+	}
 	G.UIParent = NewWidget("Frame", "UIParent")
 	G.UIParent:SetSize(1920, 1080)
 	G.GameTooltip = NewWidget("GameTooltip", "GameTooltip")

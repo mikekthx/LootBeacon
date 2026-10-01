@@ -85,7 +85,7 @@ describe("roll timer", function()
 		bar.timer:SetWidth(200)
 		wow.advance(30)
 		bar:GetScript("OnUpdate")(bar, 0)
-		assert.equals(100, bar.timer.fill:GetWidth())
+		assert.equals(98, bar.timer.fill:GetWidth())
 	end)
 end)
 

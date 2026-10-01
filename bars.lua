@@ -12,13 +12,15 @@ local GetTime = GetTime
 -- the same metal-framed panel the Loot Rolls window uses.
 local PANEL_WIDTH = 320
 local CONTENT_LEFT, CONTENT_RIGHT = 12, 8
-local HEADER_HEIGHT, FOOTER_HEIGHT = 26, 10
+local HEADER_HEIGHT, EDGE_PADDING = 26, 10 -- room for the title band, or for a plain metal edge
 local ROW_HEIGHT, ROW_GAP = 46, 6
 local ROW_WIDTH = PANEL_WIDTH - CONTENT_LEFT - CONTENT_RIGHT
 local ICON_SIZE = 37 -- the ItemButton's own size, same as the character sheet's slots
 local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
 local BUTTON_SIZE, BUTTON_GAP = 24, 2
 local BUTTON_AREA = 4 * BUTTON_SIZE + 3 * BUTTON_GAP -- always room for Need, Greed, Disenchant and Pass
+local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track and fill inset
+local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
 local QUESTION_MARK_ICON = 134400
 
@@ -47,7 +49,7 @@ end
 
 -- One tidy panel to hold every roll!
 local panel = CreateFrame("Frame", "LootBeaconPanel", UIParent, "DefaultPanelFlatTemplate")
-panel:SetSize(PANEL_WIDTH, HEADER_HEIGHT + ROW_HEIGHT + FOOTER_HEIGHT)
+panel:SetSize(PANEL_WIDTH, EDGE_PADDING + ROW_HEIGHT + EDGE_PADDING)
 panel:SetFrameStrata("HIGH")
 panel:SetMovable(true)
 panel:SetClampedToScreen(true)
@@ -71,6 +73,70 @@ end
 
 local function GrowsUp()
 	return LootBeaconOptions ~= nil and LootBeaconOptions.growDirection == "up"
+end
+
+-- Same job as Blizzard's own piece setup, plus the option to turn a piece upside down!
+local function SetupPieceVisuals(_, piece, _, pieceLayout)
+	if pieceLayout.flipVertical then
+		piece:SetTexCoord(0, 1, 1, 0)
+	else
+		piece:SetTexCoord(0, 1, 0, 1)
+	end
+	local info = C_Texture.GetAtlasInfo(pieceLayout.atlas)
+	piece:SetHorizTile(info and info.tilesHorizontally or false)
+	piece:SetVertTile(info and info.tilesVertically or false)
+	if info then
+		piece:SetAtlas(pieceLayout.atlas, true)
+	end
+end
+
+local function FlippedPiece(from)
+	return { layer = from.layer, atlas = from.atlas, x = from.x, y = from.y and -from.y, flipVertical = true }
+end
+
+-- The title band only shows while you're moving the panel, on whichever side stays pinned!
+local function BuildFrameLayout(header)
+	local base = NineSliceLayouts[BASE_LAYOUT]
+	local layout = {
+		disableSharpening = base.disableSharpening,
+		setupPieceVisualsFunction = SetupPieceVisuals,
+		LeftEdge = base.LeftEdge, RightEdge = base.RightEdge,
+	}
+	if header == "top" then
+		layout.TopLeftCorner, layout.TopRightCorner, layout.TopEdge = base.TopLeftCorner, base.TopRightCorner, base.TopEdge
+	else
+		layout.TopLeftCorner = FlippedPiece(base.BottomLeftCorner)
+		layout.TopRightCorner = FlippedPiece(base.BottomRightCorner)
+		layout.TopEdge = FlippedPiece(base.BottomEdge)
+	end
+	if header == "bottom" then
+		layout.BottomLeftCorner = FlippedPiece(base.TopLeftCorner)
+		layout.BottomRightCorner = FlippedPiece(base.TopRightCorner)
+		layout.BottomEdge = FlippedPiece(base.TopEdge)
+	else
+		layout.BottomLeftCorner, layout.BottomRightCorner, layout.BottomEdge = base.BottomLeftCorner, base.BottomRightCorner, base.BottomEdge
+	end
+	return layout
+end
+
+local header -- "top", "bottom" or nil
+
+local function ApplyFrameStyle()
+	header = unlocked and (GrowsUp() and "bottom" or "top") or nil
+	NineSliceUtil.ApplyLayout(panel.NineSlice, BuildFrameLayout(header))
+	panel.Bg:ClearAllPoints()
+	panel.Bg:SetPoint("TOPLEFT", panel, "TOPLEFT", 6, header == "top" and -20 or -2)
+	panel.Bg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -2, header == "bottom" and 20 or 2)
+	local title = panel.TitleContainer
+	title:ClearAllPoints()
+	if header == "bottom" then
+		title:SetPoint("BOTTOMLEFT", panel, "BOTTOMLEFT", 30, 1)
+		title:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -24, 1)
+	else
+		title:SetPoint("TOPLEFT", panel, "TOPLEFT", 30, -1)
+		title:SetPoint("TOPRIGHT", panel, "TOPRIGHT", -24, -1)
+	end
+	title:SetShown(header ~= nil)
 end
 
 -- Blizzard asks to show a roll window; while we're on duty, we'll take it from here!
@@ -107,7 +173,7 @@ local function UpdateTimer(row)
 	if record.duration and record.duration > 0 then
 		fraction = math.min(1, math.max(0, TimeLeft(record) / record.duration))
 	end
-	row.timer.fill:SetWidth(math.max(1, row.timer:GetWidth() * fraction))
+	row.timer.fill:SetWidth(math.max(1, (row.timer:GetWidth() - 2 * TIMER_INSET) * fraction))
 end
 
 local function HideTooltip()
@@ -186,6 +252,11 @@ local function CreateRollButton(row, choice)
 		button:SetPushedTexture(art.file .. "-Down")
 		button:SetHighlightTexture(art.file .. "-Highlight", "ADD")
 	end
+	-- Let the art scale smoothly instead of snapping to whole pixels!
+	for _, texture in ipairs({ button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture() }) do
+		texture:SetSnapToPixelGrid(false)
+		texture:SetTexelSnappingBias(0)
+	end
 	button:SetMotionScriptsWhileDisabled(true)
 	-- Tucked inside the button's corner, so it never crowds the next one!
 	button.count = button:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
@@ -205,8 +276,13 @@ local function CreateRow()
 	icon:SetPoint("LEFT", row, "LEFT", 0, 0)
 	icon:ClearNormalTexture()
 	icon.row = row
+	-- Round off the icon's corners so they never peek past the border!
+	icon.iconMask = icon:CreateMaskTexture()
+	icon.iconMask:SetTexture("Interface\\Common\\common-iconmask", "CLAMPTOBLACKADDITIVE", "CLAMPTOBLACKADDITIVE")
+	icon.iconMask:SetAllPoints(icon.icon)
+	icon.icon:AddMaskTexture(icon.iconMask)
 	icon.bind = icon:CreateFontString(nil, "OVERLAY", "NumberFontNormalSmall")
-	icon.bind:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT", 2, 2)
+	icon.bind:SetPoint("BOTTOMLEFT", icon, "BOTTOMLEFT", 0, 0)
 	icon.bind:SetTextColor(1, 0.3, 0.1)
 	icon.bind:SetText(L["BoP"])
 	icon:SetScript("OnEnter", ShowItemTooltip)
@@ -238,17 +314,18 @@ local function CreateRow()
 	end
 
 	-- The same three-piece timer Blizzard's Loot Rolls window uses!
+	local timerLift = (BUTTON_SIZE - TIMER_HEIGHT) / 2 -- centred on the buttons beside it
 	local timer = CreateFrame("Frame", nil, row)
-	timer:SetHeight(8)
-	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, 8)
-	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + 8), ICON_INSET + 8)
+	timer:SetHeight(TIMER_HEIGHT)
+	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, timerLift)
+	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + 8), ICON_INSET + timerLift)
 	timer.background = timer:CreateTexture(nil, "BACKGROUND")
 	timer.background:SetAllPoints(timer)
 	timer.background:SetAtlas("lootroll-timer-background")
+	-- Native-height fill, inset like Blizzard's, so it stays inside the track!
 	timer.fill = timer:CreateTexture(nil, "ARTWORK")
-	timer.fill:SetAtlas("lootroll-timer-fill")
-	timer.fill:SetPoint("TOPLEFT", timer, "TOPLEFT")
-	timer.fill:SetPoint("BOTTOMLEFT", timer, "BOTTOMLEFT")
+	timer.fill:SetAtlas("lootroll-timer-fill", true)
+	timer.fill:SetPoint("LEFT", timer, "LEFT", TIMER_INSET, 0)
 	timer.border = timer:CreateTexture(nil, "OVERLAY")
 	timer.border:SetAllPoints(timer)
 	timer.border:SetAtlas("lootroll-timer-border")
@@ -369,7 +446,7 @@ function Layout()
 		if previous then
 			row:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -ROW_GAP)
 		else
-			row:SetPoint("TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -HEADER_HEIGHT)
+			row:SetPoint("TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(header == "top" and HEADER_HEIGHT or EDGE_PADDING))
 		end
 		row.divider:SetShown(index < #ordered)
 		row:Show()
@@ -378,7 +455,9 @@ function Layout()
 
 	local count = #ordered
 	if count > 0 then
-		panel:SetHeight(HEADER_HEIGHT + count * ROW_HEIGHT + (count - 1) * ROW_GAP + FOOTER_HEIGHT)
+		local topRoom = header == "top" and HEADER_HEIGHT or EDGE_PADDING
+		local bottomRoom = header == "bottom" and HEADER_HEIGHT or EDGE_PADDING
+		panel:SetHeight(topRoom + count * ROW_HEIGHT + (count - 1) * ROW_GAP + bottomRoom)
 	end
 	panel:SetShown(count > 0)
 	shownRecords = records
@@ -435,6 +514,7 @@ function Bars.Refresh()
 	lastGrowUp = growUp
 
 	panel:SetScale(LootBeaconOptions.scale)
+	ApplyFrameStyle()
 	ApplyPosition()
 	Layout()
 end
@@ -536,7 +616,9 @@ function Bars.SetAnchorShown(shown)
 	unlocked = shown and true or false
 	panel:EnableMouse(unlocked)
 	panel:SetTitle(unlocked and L["LootBeacon: drag to move, right-click to lock"] or LOOT_ROLLS)
+	ApplyFrameStyle()
 	Bars.SetDemo(unlocked)
+	Layout() -- the header moved, so the rows shift too
 end
 
 function Bars.GetBar(record)

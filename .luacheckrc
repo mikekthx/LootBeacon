@@ -18,7 +18,7 @@ read_globals = {
 	"MinimalSliderWithSteppersMixin", "NEED", "NUM_CHAT_WINDOWS", "PASS", "ResetCursor",
 	"RETRIEVING_ITEM_INFO", "ROLL_DISENCHANT", "RollOnLoot", "SetLootHistoryFrameToEncounter",
 	"Settings", "StaticPopup_Hide", "UIParent", "UNKNOWN", "LOOT_ROLLS",
-	"SetItemButtonTexture", "SetItemButtonQuality", "SetItemButtonCount",
+	"SetItemButtonTexture", "SetItemButtonQuality", "SetItemButtonCount", "NineSliceLayouts", "NineSliceUtil", "C_Texture",
 }
 
 -- Specs and the fake client set and read globals freely; that's their whole job.
