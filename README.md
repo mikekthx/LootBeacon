@@ -16,7 +16,7 @@ LootBeacon brings back two classic Tekkub addons — **teksLoot** and **GreedBea
 
 Open `ESC > Options > AddOns > LootBeacon`, or type `/lb` (or `/lootbeacon`).
 
-- `/lb move` — show the anchor with sample bars so you can drag the bars into place; right-click the anchor to lock it
+- `/lb move` — unlock the panel (with sample rolls) so you can drag it into place; right-click it to lock it again
 - `/lb test` — show or hide sample bars
 
 You can change the bar size, which way the bars stack, which chat window the results go to, and switch either half of the addon off.
