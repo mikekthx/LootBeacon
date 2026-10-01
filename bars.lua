@@ -22,10 +22,11 @@ local BUTTON_AREA = 4 * BUTTON_SIZE + 3 * BUTTON_GAP -- always room for Need, Gr
 local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track and fill inset
 -- The divider comes from the objective tracker's header art (300x40): the same metal rod along its top and
 -- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
--- the bottom rod's lower half, along their centre lines, makes one clean rod. Values are rows of the art.
+-- the bottom rod's lower half makes one clean rod. Values are rows of the art; the cut follows the long bar,
+-- which leaves the diamond end caps half a row taller than the original.
 local ROD_ATLAS, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 40
-local ROD_UPPER = { 2.9, 6.67 } -- the top rod, from the shadow above it down to its centre line
-local ROD_LOWER = { 34.13, 38.6 } -- the bottom rod, from its centre line down through the shadow below it
+local ROD_UPPER = { 2.9, 7.07 } -- the top rod, from the shadow above it down through its bright highlight
+local ROD_LOWER = { 34, 38.6 } -- the bottom rod, from just under its highlight down through the shadow below it
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
 local MAX_DEMO_ROLLS = 20
@@ -306,7 +307,7 @@ end
 -- One half of the divider rod: `rows` of the header art, hung above or below the divider's centre.
 local function RodHalf(divider, rows, point)
 	local half = divider:CreateTexture(nil, "BACKGROUND")
-	half:SetAtlas(ROD_ATLAS, false, "TRILINEAR") -- blend when drawn small, so the thin highlight never drops out
+	half:SetAtlas(ROD_ATLAS)
 	half:SetTexCoord(0, 1, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
 	half:SetSize(ROW_WIDTH, rows[2] - rows[1])
 	half:SetPoint(point, divider, "CENTER")
@@ -383,10 +384,9 @@ local function CreateRow()
 	timer.border:SetAtlas("lootroll-timer-border")
 	row.timer = timer
 
-	-- The metal rod between rows; its two halves meet on the divider's centre, in the middle of the gap.
+	-- The metal rod between rows; its two halves meet on the divider's centre, which Layout puts in the gap.
 	row.divider = CreateFrame("Frame", nil, row)
 	row.divider:SetSize(ROW_WIDTH, 1)
-	row.divider:SetPoint("CENTER", row, "BOTTOM", 0, -ROW_GAP / 2)
 	row.divider.upper = RodHalf(row.divider, ROD_UPPER, "BOTTOM")
 	row.divider.lower = RodHalf(row.divider, ROD_LOWER, "TOP")
 
@@ -486,7 +486,10 @@ function Layout()
 		for index = #records, 1, -1 do ordered[#ordered + 1] = records[index] end
 	end
 
-	local previous
+	-- Everything below lands on whole screen pixels, redone every layout since what counts as a whole pixel
+	-- changes with the scale. Otherwise each row rounds differently: thin borders come out thicker on one
+	-- side, and one divider's highlight looks brighter than the next.
+	local top = header == "top" and HEADER_HEIGHT or EDGE_PADDING
 	for index, record in ipairs(ordered) do
 		local row = barsByRecord[record]
 		if not row then
@@ -495,19 +498,14 @@ function Layout()
 		end
 		UpdateRow(row, record)
 		row:ClearAllPoints()
-		if previous then
-			PixelUtil.SetPoint(row, "TOPLEFT", previous, "BOTTOMLEFT", 0, -ROW_GAP)
-		else
-			PixelUtil.SetPoint(row, "TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(header == "top" and HEADER_HEIGHT or EDGE_PADDING))
-		end
-		-- Whole screen pixels for the item button, or its thin border rounds thicker on one side than another.
-		-- Redone every layout, since what counts as a whole pixel changes with the scale.
+		PixelUtil.SetPoint(row, "TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(top + (index - 1) * (ROW_HEIGHT + ROW_GAP)))
 		PixelUtil.SetSize(row.icon, ICON_SIZE, ICON_SIZE)
 		row.icon:ClearAllPoints()
 		PixelUtil.SetPoint(row.icon, "TOPLEFT", row, "TOPLEFT", 0, -ICON_INSET)
+		row.divider:ClearAllPoints()
+		PixelUtil.SetPoint(row.divider, "CENTER", row, "TOP", 0, -(ROW_HEIGHT + ROW_GAP / 2))
 		row.divider:SetShown(index < #ordered)
 		row:Show()
-		previous = row
 	end
 
 	local count = #ordered
