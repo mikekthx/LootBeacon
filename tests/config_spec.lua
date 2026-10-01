@@ -19,9 +19,9 @@ local function Load(saved)
 				calls[#calls + 1] = "Bars.SetAnchorShown:" .. tostring(value)
 			end,
 			IsDemo = function() return demo end,
-			SetDemo = function(value)
+			SetDemo = function(value, count)
 				demo = value
-				calls[#calls + 1] = "Bars.SetDemo:" .. tostring(value)
+				calls[#calls + 1] = "Bars.SetDemo:" .. tostring(value) .. (count and ":" .. count or "")
 			end,
 		},
 		Chat = { Init = Track("Chat.Init"), Refresh = Track("Chat.Refresh") },
@@ -158,5 +158,16 @@ describe("slash command", function()
 		SlashCmdList.LOOTBEACON("test")
 		assert.is_false(demo)
 		assert.equals(1, #wow.printed)
+	end)
+
+	it("shows the number of sample bars you ask for", function()
+		SlashCmdList.LOOTBEACON("test 2")
+		assert.is_true(demo)
+		SlashCmdList.LOOTBEACON("test 7")
+		assert.is_true(demo)
+		assert.same({ "Bars.Init", "Chat.Init", "Bars.SetDemo:true:2", "Bars.SetDemo:true:7" }, calls)
+		assert.equals(2, #wow.printed)
+		SlashCmdList.LOOTBEACON("test")
+		assert.is_false(demo)
 	end)
 end)

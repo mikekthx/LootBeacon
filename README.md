@@ -18,6 +18,7 @@ Open `ESC > Options > AddOns > LootBeacon`, or type `/lb` (or `/lootbeacon`).
 
 - `/lb move` — unlock the panel (with sample rolls) so you can drag it into place; right-click it to lock it again
 - `/lb test` — show or hide sample bars
+- `/lb test 2` — show that many sample bars (up to 20)
 
 You can change the bar size, which way the bars stack, which chat window the results go to, and switch either half of the addon off.
 

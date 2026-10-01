@@ -217,7 +217,7 @@ function M.reset()
 	G.SlashCmdList = {}
 	G.Enum = {
 		EncounterLootDropRollState = { NeedMainSpec = 0, NeedOffSpec = 1, Transmog = 2, Greed = 3, NoRoll = 4, Pass = 5 },
-		ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4 },
+		ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5 },
 	}
 	G.InputUtil = { IsGamepadUIEnabled = function() return M.gamepad end }
 	G.IsShiftKeyDown = function() return M.shift end

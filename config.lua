@@ -60,8 +60,10 @@ function ns.HandleSlash(msg)
 	if command == "move" then
 		ns.Bars.SetAnchorShown(not ns.Bars.IsAnchorShown())
 	elseif command == "test" then
-		local showing = not ns.Bars.IsDemo()
-		ns.Bars.SetDemo(showing)
+		-- "/lb test 2" always shows that many; a bare "/lb test" flips them on and off
+		local count = tonumber((msg:match("^%s*%S+%s+(%d+)")))
+		local showing = count ~= nil or not ns.Bars.IsDemo()
+		ns.Bars.SetDemo(showing, count)
 		if showing then
 			ns.Print(L["Showing sample roll bars. Type /lb test again to hide them."])
 		end

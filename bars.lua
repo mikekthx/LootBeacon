@@ -26,6 +26,7 @@ local ROD_ATLAS, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 40
 local ROD_TOP, ROD_BOTTOM = 0, 8
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
+local MAX_DEMO_ROLLS = 20
 local QUESTION_MARK_ICON = 134400
 
 -- Blizzard's own roll-button art, plus the old Disenchant files since there's no new one!
@@ -579,41 +580,58 @@ local function DemoRecord(key, o)
 	return record
 end
 
-local function BuildDemoRecords()
-	return {
-		DemoRecord("demo:1", {
-			texture = 132395, name = "Dwarven Hatchet of the Bear", link = "item:2073",
-			quality = Enum.ItemQuality.Uncommon, bop = false, canNeed = true,
-			choices = {
-				need = { { name = "Charlie", class = "DRUID" } },
-				greed = { { name = "Alpha", class = "MAGE" }, { name = "Bravo", class = "ROGUE" } },
-			},
-		}),
-		DemoRecord("demo:2", {
-			texture = 466975, name = "Ephemeral Choker", link = "item:270227",
-			quality = Enum.ItemQuality.Rare, bop = true, canNeed = false, reasonNeed = 1,
-			choices = { pass = { { name = "Delta", class = "PALADIN" } } },
-		}),
-		DemoRecord("demo:3", {
-			texture = 132409, name = "Durgen's Crescent Axe", link = "item:270256",
-			quality = Enum.ItemQuality.Epic, bop = true, canNeed = true, canDisenchant = true,
-			choices = {
-				need = { { name = "Echo", class = "HUNTER" } },
-				disenchant = { { name = "Alpha", class = "MAGE" } },
-			},
-		}),
-	}
+-- Something for every row style: plain, can't-Need, Disenchant and Bind on Pickup!
+local DEMO_ITEMS = {
+	{
+		texture = 132395, name = "Dwarven Hatchet of the Bear", link = "item:2073",
+		quality = Enum.ItemQuality.Uncommon, bop = false, canNeed = true,
+		choices = {
+			need = { { name = "Charlie", class = "DRUID" } },
+			greed = { { name = "Alpha", class = "MAGE" }, { name = "Bravo", class = "ROGUE" } },
+		},
+	},
+	{
+		texture = "Interface\\Icons\\INV_Weapon_Rifle_08", name = "Lil Timmy's Peashooter", link = "item:13136",
+		quality = Enum.ItemQuality.Rare, bop = false, canNeed = false, reasonNeed = 1,
+		choices = { pass = { { name = "Delta", class = "PALADIN" } } },
+	},
+	{
+		texture = "Interface\\Icons\\INV_Staff_13", name = "Staff of Jordan", link = "item:873",
+		quality = Enum.ItemQuality.Epic, bop = false, canNeed = true, canDisenchant = true,
+		choices = {
+			need = { { name = "Echo", class = "HUNTER" } },
+			disenchant = { { name = "Alpha", class = "MAGE" } },
+		},
+	},
+	{
+		texture = "Interface\\Icons\\INV_Sword_39", name = "Thunderfury, Blessed Blade of the Windseeker", link = "item:19019",
+		quality = Enum.ItemQuality.Legendary, bop = true, canNeed = true,
+		choices = {
+			need = { { name = "Bravo", class = "ROGUE" }, { name = "Foxtrot", class = "WARRIOR" } },
+			greed = { { name = "Delta", class = "PALADIN" } },
+		},
+	},
+}
+
+local function BuildDemoRecords(count)
+	local records = {}
+	for index = 1, count do
+		records[index] = DemoRecord("demo:" .. index, DEMO_ITEMS[(index - 1) % #DEMO_ITEMS + 1])
+	end
+	return records
 end
 
 function Bars.IsDemo()
 	return demoMode
 end
 
-function Bars.SetDemo(on)
+-- Show `count` sample rolls (all four items if you don't say), or put them away.
+function Bars.SetDemo(on, count)
 	on = on and true or false
-	if on == demoMode then return end
+	count = on and math.max(1, math.min(MAX_DEMO_ROLLS, math.floor(count or #DEMO_ITEMS))) or 0
+	if on == demoMode and count == #demoRecords then return end
 	demoMode = on
-	demoRecords = on and BuildDemoRecords() or {}
+	demoRecords = on and BuildDemoRecords(count) or {}
 	Layout()
 end
 
