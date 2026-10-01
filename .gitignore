@@ -34,5 +34,8 @@ pkgmeta.yaml
 # Ignore compiled Lua bytecode (rare, but just in case)
 *.luac
 
-# Local-only design docs and plans
+# Local-only design docs, plans, and tests
 docs/
+tests/
+.busted
+.luacheckrc
