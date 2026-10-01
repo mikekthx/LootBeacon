@@ -23,7 +23,7 @@ local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track
 -- The divider is the rod along the top of the objective tracker's header art (300x40).
 -- ROD_TOP and ROD_BOTTOM are the art's pixel rows that hold it.
 local ROD_ATLAS, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 40
-local ROD_TOP, ROD_BOTTOM = 0, 8
+local ROD_TOP, ROD_BOTTOM = 2, 10
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
 local MAX_DEMO_ROLLS = 20
