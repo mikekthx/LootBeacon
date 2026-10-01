@@ -13,15 +13,24 @@ local GetTime = GetTime
 local PANEL_WIDTH = 330
 local CONTENT_LEFT, CONTENT_RIGHT = 16, 14 -- the left metal edge is thicker, just like Blizzard insets its own background
 local HEADER_HEIGHT, EDGE_PADDING = 26, 8 -- room for the title band, or for a plain metal edge
-local ROW_HEIGHT, ROW_GAP = 39, 8
+-- Each row: the item icon, then the name above the timer, then a two-by-two grid of roll buttons.
+local ROW_HEIGHT, ROW_GAP = 44, 8
 local ROW_WIDTH = PANEL_WIDTH - CONTENT_LEFT - CONTENT_RIGHT
-local ICON_SIZE = 37 -- the ItemButton's own size, same as the character sheet's slots
+local ICON_SIZE = ROW_HEIGHT -- fills the row, lining up with the top and bottom of the button grid
 local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
-local BUTTON_SIZE, BUTTON_GAP = 24, 2
-local BUTTON_AREA = 4 * BUTTON_SIZE + 3 * BUTTON_GAP -- always room for Need, Greed, Disenchant and Pass
-local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track and fill inset
--- Our timer is narrower than Blizzard's 238, so its art is drawn in three pieces: rounded ends this wide,
--- kept at their natural size, and a middle that stretches.
+local BUTTON_SIZE, BUTTON_GAP = 21, 2
+local BUTTON_AREA = 2 * BUTTON_SIZE + BUTTON_GAP -- the grid is this wide (and tall)
+-- Where each button sits in the grid: column and row, from the top left. Disenchant's corner stays empty
+-- when it isn't offered.
+local BUTTON_GRID = { need = { 1, 1 }, pass = { 2, 1 }, greed = { 1, 2 }, disenchant = { 2, 2 } }
+local CONTENT_GAP = 8 -- between the icon, the name and timer, and the button grid
+local NAME_GAP = 2 -- between the name's space and the timer
+-- Blizzard's Loot Rolls timer art is 13 tall with its fill inset 2. Ours is thinner and narrower than
+-- Blizzard's 238, so its art is drawn in three pieces: rounded ends kept in proportion, and a middle that
+-- stretches. TIMER_CAP and TIMER_FILL_CAP are those ends' widths in the art.
+local TIMER_ART_HEIGHT, TIMER_HEIGHT = 13, 10
+local TIMER_SCALE = TIMER_HEIGHT / TIMER_ART_HEIGHT
+local TIMER_INSET = 2 * TIMER_SCALE
 local TIMER_CAP, TIMER_FILL_CAP = 7, 5
 -- The divider comes from the objective tracker's header art (300x40): the same metal rod along its top and
 -- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
@@ -43,9 +52,6 @@ local BUTTON_ART = {
 	disenchant = { file = "Interface\\Buttons\\UI-GroupLoot-DE" },
 	pass = { atlas = "lootroll-toast-icon-pass" },
 }
-
--- Right to left, the way the buttons line up on the row.
-local BUTTON_ORDER = { "pass", "disenchant", "greed", "need" }
 
 local function ChoiceLabel(choice)
 	if choice == "need" then return NEED end
@@ -216,7 +222,7 @@ local function UpdateTimer(row)
 	local width = math.max(1, (row.timer:GetWidth() - 2 * TIMER_INSET) * fraction)
 	row.timer.fill:SetWidth(width)
 	-- Nearly empty? Then the fill's two ends share what's left.
-	local cap = math.min(TIMER_FILL_CAP, width / 2)
+	local cap = math.min(TIMER_FILL_CAP * TIMER_SCALE, width / 2)
 	row.timer.fillArt.left:SetWidth(cap)
 	row.timer.fillArt.right:SetWidth(cap)
 end
@@ -327,11 +333,12 @@ local function RodHalf(divider, rows, point)
 	return half
 end
 
--- Draws `atlas` over `region` (on `owner`, in `layer`) as a left end and a right end `cap` units wide,
--- at the art's natural size, with only the middle stretched. Returns the three textures.
+-- Draws `atlas` over `region` (on `owner`, in `layer`) as a left end and a right end, each `cap` units
+-- of the art wide and scaled with the timer, with only the middle stretched. Returns the three textures.
 local function ThreeSlice(owner, region, layer, atlas, cap)
 	local info = C_Texture.GetAtlasInfo(atlas)
-	local edge = cap / (info and info.width or TIMER_HEIGHT)
+	local edge = cap / (info and info.width or TIMER_ART_HEIGHT)
+	cap = cap * TIMER_SCALE
 	local slices = {}
 	for name, coords in pairs({ left = { 0, edge }, middle = { edge, 1 - edge }, right = { 1 - edge, 1 } }) do
 		local slice = owner:CreateTexture(nil, layer)
@@ -389,36 +396,46 @@ local function CreateRow()
 	end)
 	row.icon = icon
 
-	-- Top line: the name gets the whole width!
-	row.name = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
-	row.name:SetJustifyH("LEFT")
-	row.name:SetWordWrap(false)
-	row.name:SetPoint("TOPLEFT", icon, "TOPRIGHT", 8, -1)
-	row.name:SetPoint("TOPRIGHT", row, "TOPRIGHT", 0, -ICON_INSET - 1)
-
-	-- Bottom line: timer on the left, buttons on the right.
+	-- The roll buttons, two by two at the right-hand end. Each keeps its own corner, shown or not.
 	row.buttons = {}
 	for _, choice in ipairs(ns.CHOICES) do
-		row.buttons[choice] = CreateRollButton(row, choice)
+		local button = CreateRollButton(row, choice)
+		local column, line = BUTTON_GRID[choice][1], BUTTON_GRID[choice][2]
+		local x = -(2 - column) * (BUTTON_SIZE + BUTTON_GAP)
+		if line == 1 then
+			button:SetPoint("TOPRIGHT", row, "TOPRIGHT", x, 0)
+		else
+			button:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", x, 0)
+		end
+		row.buttons[choice] = button
 	end
 
-	-- The same three-piece timer Blizzard's Loot Rolls window uses!
-	local timerLift = math.floor((BUTTON_SIZE - TIMER_HEIGHT) / 2) -- centred on the buttons, on a whole unit
+	-- The same three-piece timer Blizzard's Loot Rolls window uses, thinned down and run along the bottom:
+	-- always the full width between the icon and the buttons.
 	local timer = CreateFrame("Frame", nil, row)
 	timer:SetHeight(TIMER_HEIGHT)
-	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, timerLift)
-	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + 8), ICON_INSET + timerLift)
+	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", CONTENT_GAP, 0)
+	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + CONTENT_GAP), 0)
 	timer.background = ThreeSlice(timer, timer, "BACKGROUND", "lootroll-timer-background", TIMER_CAP)
-	-- Native-height fill, inset like Blizzard's, so it stays inside the track! timer.fill is just its
-	-- outline; UpdateTimer sizes it and the art follows.
+	-- Fill inset like Blizzard's, so it stays inside the track! timer.fill is just its outline; UpdateTimer
+	-- sizes it and the art follows.
 	local fillInfo = C_Texture.GetAtlasInfo("lootroll-timer-fill")
 	timer.fill = timer:CreateTexture(nil, "ARTWORK")
-	timer.fill:SetHeight(fillInfo and fillInfo.height or TIMER_HEIGHT - 2 * TIMER_INSET)
+	timer.fill:SetHeight((fillInfo and fillInfo.height or TIMER_ART_HEIGHT - 4) * TIMER_SCALE)
 	timer.fill:SetPoint("LEFT", timer, "LEFT", TIMER_INSET, 0)
 	SmoothScaling(timer.fill) -- so its end slides between pixels instead of ticking from one to the next
 	timer.fillArt = ThreeSlice(timer, timer.fill, "ARTWORK", "lootroll-timer-fill", TIMER_FILL_CAP)
 	timer.border = ThreeSlice(timer, timer, "OVERLAY", "lootroll-timer-border", TIMER_CAP)
 	row.timer = timer
+
+	-- The name fills the space above the timer: up to two lines, centred so a short name sits close to it.
+	row.name = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+	row.name:SetJustifyH("LEFT")
+	row.name:SetJustifyV("MIDDLE")
+	row.name:SetWordWrap(true)
+	row.name:SetMaxLines(2)
+	row.name:SetPoint("TOPLEFT", icon, "TOPRIGHT", CONTENT_GAP, 0)
+	row.name:SetPoint("BOTTOMRIGHT", timer, "TOPRIGHT", 0, NAME_GAP)
 
 	-- The metal rod between rows; its two halves meet on the divider's centre, which Layout puts in the gap.
 	row.divider = CreateFrame("Frame", nil, row)
@@ -466,21 +483,6 @@ local function UpdateRow(row, record)
 	for choice, button in pairs(buttons) do
 		local count = #(record.choices[choice] or {})
 		button.count:SetText(count > 0 and tostring(count) or "")
-	end
-
-	-- Right-aligned in a fixed-width area, so every timer lines up!
-	local previous
-	for _, choice in ipairs(BUTTON_ORDER) do
-		local button = buttons[choice]
-		if button:IsShown() then
-			button:ClearAllPoints()
-			if previous then
-				button:SetPoint("RIGHT", previous, "LEFT", -BUTTON_GAP, 0)
-			else
-				button:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", 0, ICON_INSET)
-			end
-			previous = button
-		end
 	end
 	UpdateTimer(row)
 end
