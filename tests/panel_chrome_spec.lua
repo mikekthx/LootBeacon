@@ -63,6 +63,35 @@ describe("the panel's frame", function()
 		assert.is_false(ns.Bars._panel.TitleContainer:IsShown())
 	end)
 
+	it("trims the corners to meet halfway on a one-row panel, keeping the ends on the edges", function()
+		Load()
+		wow.startRoll(1, 500, 60000) -- 8 + 39 + 8 = 55 tall; each corner may reach 27.5 in, plus its 8 overhang
+		local slice = ns.Bars._panel.NineSlice
+		assert.equals(35.5, slice.TopLeftCorner:GetHeight())
+		assert.same({ 0, 1, 1, 1 - 35.5 / 64 }, slice.TopLeftCorner._texCoord) -- flipped: the art's bottom is on top
+		assert.equals(35.5, slice.BottomRightCorner:GetHeight())
+		assert.same({ 0, 1, 1 - 35.5 / 64, 1 }, slice.BottomRightCorner._texCoord)
+	end)
+
+	it("leaves the corners whole once the panel is tall enough", function()
+		Load()
+		ns.Bars.SetDemo(true)
+		local slice = ns.Bars._panel.NineSlice
+		assert.equals(64, slice.TopRightCorner:GetHeight())
+		assert.same({ 0, 1, 1, 0 }, slice.TopRightCorner._texCoord)
+		assert.equals(64, slice.BottomLeftCorner:GetHeight())
+		assert.same({ 0, 1, 0, 1 }, slice.BottomLeftCorner._texCoord)
+	end)
+
+	it("trims a header corner by its bigger overhang", function()
+		Load({ growDirection = "up" })
+		ns.Bars.SetAnchorShown(true)
+		ns.Bars.SetDemo(true, 1) -- 8 + 39 + 26 = 73 tall; the header corner hangs 16 below
+		local corner = ns.Bars._panel.NineSlice.BottomLeftCorner
+		assert.equals(36.5 + 16, corner:GetHeight())
+		assert.same({ 0, 1, 52.5 / 64, 0 }, corner._texCoord) -- flipped: the art's top is on the bottom
+	end)
+
 	it("flips a piece's art upside down when asked", function()
 		Load()
 		local layout = LastLayout()

@@ -50,7 +50,11 @@ function methods:IsEnabled() return self._enabled end
 function methods:SetAlpha(alpha) self._alpha = alpha end
 function methods:GetAlpha() return self._alpha or 1 end
 function methods:SetDesaturated(desaturated) self._desaturated = desaturated end
-function methods:SetAtlas(atlas) self._atlas = atlas end
+function methods:SetAtlas(atlas, useAtlasSize)
+	self._atlas = atlas
+	local info = useAtlasSize and _G.C_Texture.GetAtlasInfo(atlas)
+	if info then self:SetSize(info.width, info.height) end
+end
 function methods:GetAtlas() return self._atlas end
 function methods:SetTexture(texture) self._texture = texture end
 function methods:GetTexture() return self._texture end
@@ -188,8 +192,18 @@ function M.reset()
 		ApplyLayout = function(container, layout)
 			M.calls.ApplyLayout = M.calls.ApplyLayout or {}
 			table.insert(M.calls.ApplyLayout, { container, layout })
+			for _, name in ipairs({ "TopLeftCorner", "TopRightCorner", "BottomLeftCorner", "BottomRightCorner",
+				"TopEdge", "BottomEdge", "LeftEdge", "RightEdge" }) do
+				local pieceLayout = layout[name]
+				if pieceLayout then
+					container[name] = rawget(container, name) or NewWidget("Texture", nil, container)
+					layout.setupPieceVisualsFunction(container, container[name], {}, pieceLayout)
+				end
+			end
 		end,
 	}
+	-- Atlas sizes the specs care about; anything else is a 64x64 square.
+	M.atlasSizes = {}
 	-- Snaps to real screen pixels in the client; here it records the call and passes straight through.
 	G.PixelUtil = {
 		SetHeight = function(region, height)
@@ -202,7 +216,11 @@ function M.reset()
 		end,
 	}
 	G.C_Texture = {
-		GetAtlasInfo = function(atlas) return { tilesHorizontally = atlas:sub(1, 1) == "_", tilesVertically = atlas:sub(1, 1) == "!" } end,
+		GetAtlasInfo = function(atlas)
+			local size = M.atlasSizes[atlas] or { 64, 64 }
+			return { width = size[1], height = size[2],
+				tilesHorizontally = atlas:sub(1, 1) == "_", tilesVertically = atlas:sub(1, 1) == "!" }
+		end,
 	}
 	G.UIParent = NewWidget("Frame", "UIParent")
 	G.UIParent:SetSize(1920, 1080)

@@ -125,10 +125,35 @@ local function BuildFrameLayout(header)
 end
 
 local header -- "top", "bottom" or nil
+local frameLayout -- the layout ApplyFrameStyle last put on the panel
+
+-- Blizzard's corners are tall, so on a short panel the top pair would poke out past the bottom edge and
+-- vice versa. Trim each one to meet its partner halfway, keeping the end that sits on the panel's edge.
+local CORNER_SIDES = { TopLeftCorner = "top", TopRightCorner = "top", BottomLeftCorner = "bottom", BottomRightCorner = "bottom" }
+
+local function FitCorners(height)
+	for name, side in pairs(CORNER_SIDES) do
+		local pieceLayout, piece = frameLayout[name], panel.NineSlice[name]
+		local info = C_Texture.GetAtlasInfo(pieceLayout.atlas)
+		if piece and info then
+			local shown = math.min(info.height, height / 2 + math.abs(pieceLayout.y or 0))
+			local first, last = 0, 1 -- the art's rows, from the piece's top to its bottom
+			if pieceLayout.flipVertical then first, last = 1, 0 end
+			local span = (last - first) * shown / info.height
+			if side == "top" then
+				piece:SetTexCoord(0, 1, first, first + span)
+			else
+				piece:SetTexCoord(0, 1, last - span, last)
+			end
+			piece:SetHeight(shown)
+		end
+	end
+end
 
 local function ApplyFrameStyle()
 	header = unlocked and (GrowsUp() and "bottom" or "top") or nil
-	NineSliceUtil.ApplyLayout(panel.NineSlice, BuildFrameLayout(header))
+	frameLayout = BuildFrameLayout(header)
+	NineSliceUtil.ApplyLayout(panel.NineSlice, frameLayout)
 	panel.Bg:ClearAllPoints()
 	panel.Bg:SetPoint("TOPLEFT", panel, "TOPLEFT", 6, header == "top" and -20 or -2)
 	panel.Bg:SetPoint("BOTTOMRIGHT", panel, "BOTTOMRIGHT", -2, header == "bottom" and 20 or 2)
@@ -468,7 +493,9 @@ function Layout()
 	if count > 0 then
 		local topRoom = header == "top" and HEADER_HEIGHT or EDGE_PADDING
 		local bottomRoom = header == "bottom" and HEADER_HEIGHT or EDGE_PADDING
-		panel:SetHeight(topRoom + count * ROW_HEIGHT + (count - 1) * ROW_GAP + bottomRoom)
+		local height = topRoom + count * ROW_HEIGHT + (count - 1) * ROW_GAP + bottomRoom
+		panel:SetHeight(height)
+		FitCorners(height)
 	end
 	panel:SetShown(count > 0)
 	shownRecords = records
