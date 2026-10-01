@@ -218,6 +218,7 @@ function M.reset()
 	G.Enum = {
 		EncounterLootDropRollState = { NeedMainSpec = 0, NeedOffSpec = 1, Transmog = 2, Greed = 3, NoRoll = 4, Pass = 5 },
 		ItemQuality = { Poor = 0, Common = 1, Uncommon = 2, Rare = 3, Epic = 4, Legendary = 5 },
+		ItemBind = { None = 0, OnAcquire = 1, OnEquip = 2, OnUse = 3, Quest = 4 },
 	}
 	G.InputUtil = { IsGamepadUIEnabled = function() return M.gamepad end }
 	G.IsShiftKeyDown = function() return M.shift end
@@ -352,6 +353,23 @@ function M.reset()
 			return roll and roll.duration
 		end,
 	}
+	-- The client's item cache. Items in M.uncachedItems answer nil until M.loadItem() says the server replied.
+	M.items = {
+		[2073] = { name = "Dwarven Hatchet of the Bear", quality = 2, texture = 132395, bindType = 2 },
+		[13136] = { name = "Lil Timmy's Peashooter", quality = 3, texture = 135617, bindType = 2 },
+		[873] = { name = "Staff of Jordan", quality = 4, texture = 135157, bindType = 2 },
+		[19019] = { name = "Thunderfury, Blessed Blade of the Windseeker", quality = 5, texture = 135349, bindType = 1 },
+	}
+	M.uncachedItems = {}
+	G.C_Item = {
+		GetItemInfo = function(itemID)
+			local item = M.items[itemID]
+			if not item or M.uncachedItems[itemID] then return nil end
+			local link = ("|cnIQ%d:|Hitem:%d|h[%s]|h|r"):format(item.quality, itemID, item.name)
+			return item.name, link, item.quality, 1, 1, "", "", 1, "", item.texture, 0, 0, 0, item.bindType
+		end,
+		RequestLoadItemDataByID = Recorder("RequestLoadItemDataByID"),
+	}
 	G.C_LootHistory = {
 		GetSortedInfoForDrop = function(encounterID, key)
 			local drop = M.drops[key]
@@ -429,6 +447,12 @@ function M.clickLink(link, button)
 	for _, callback in ipairs(M.itemRefCallbacks) do
 		callback.fn(callback.owner, link, "[link]", button or "LeftButton", _G.ChatFrame1)
 	end
+end
+
+-- The server sends an item we asked about.
+function M.loadItem(itemID)
+	M.uncachedItems[itemID] = nil
+	M.fire("ITEM_DATA_LOAD_RESULT", itemID, true)
 end
 
 function M.ItemInfo(o)

@@ -234,7 +234,7 @@ local function ShowItemTooltip(icon)
 	if not record then return end
 	GameTooltip:SetOwner(icon, "ANCHOR_RIGHT")
 	if record.demo then
-		GameTooltip:SetHyperlink(record.link)
+		GameTooltip:SetHyperlink("item:" .. record.itemID) -- works even before the item's details arrive
 	else
 		GameTooltip:SetLootRollItem(record.rollID)
 	end
@@ -564,54 +564,62 @@ panel:SetScript("OnMouseUp", function(_, button)
 	end
 end)
 
--- Pretend rolls, for lining things up without a group!
-local function DemoRecord(key, o)
-	local record = {
-		key = key, demo = true, startTime = GetTime(), duration = DEMO_DURATION,
-		texture = o.texture, name = o.name, link = o.link, count = 1, quality = o.quality,
-		bindOnPickUp = o.bop, canNeed = o.canNeed, canGreed = true,
-		canDisenchant = o.canDisenchant or false,
-		reasonNeed = o.reasonNeed or 0, reasonGreed = 0, pending = false,
-		choices = ns.NewChoices(),
-	}
-	for choice, players in pairs(o.choices or {}) do
-		record.choices[choice] = players
-	end
-	return record
-end
-
--- Something for every row style: plain, can't-Need, Disenchant and Bind on Pickup!
+-- Pretend rolls, for lining things up without a group! Each is a real item; the game fills in the rest.
+-- Something for every row style: plain, Disenchant and Bind on Pickup.
 local DEMO_ITEMS = {
 	{
-		texture = 132395, name = "Dwarven Hatchet of the Bear", link = "item:2073",
-		quality = Enum.ItemQuality.Uncommon, bop = false, canNeed = true,
+		itemID = 2073, -- Dwarven Hatchet
 		choices = {
 			need = { { name = "Charlie", class = "DRUID" } },
 			greed = { { name = "Alpha", class = "MAGE" }, { name = "Bravo", class = "ROGUE" } },
 		},
 	},
 	{
-		texture = "Interface\\Icons\\INV_Weapon_Rifle_08", name = "Lil Timmy's Peashooter", link = "item:13136",
-		quality = Enum.ItemQuality.Rare, bop = false, canNeed = false, reasonNeed = 1,
+		itemID = 13136, -- Lil Timmy's Peashooter
 		choices = { pass = { { name = "Delta", class = "PALADIN" } } },
 	},
 	{
-		texture = "Interface\\Icons\\INV_Staff_13", name = "Staff of Jordan", link = "item:873",
-		quality = Enum.ItemQuality.Epic, bop = false, canNeed = true, canDisenchant = true,
+		itemID = 873, -- Staff of Jordan
+		canDisenchant = true,
 		choices = {
 			need = { { name = "Echo", class = "HUNTER" } },
 			disenchant = { { name = "Alpha", class = "MAGE" } },
 		},
 	},
 	{
-		texture = "Interface\\Icons\\INV_Sword_39", name = "Thunderfury, Blessed Blade of the Windseeker", link = "item:19019",
-		quality = Enum.ItemQuality.Legendary, bop = true, canNeed = true,
+		itemID = 19019, -- Thunderfury, Blessed Blade of the Windseeker
 		choices = {
 			need = { { name = "Bravo", class = "ROGUE" }, { name = "Foxtrot", class = "WARRIOR" } },
 			greed = { { name = "Delta", class = "PALADIN" } },
 		},
 	},
 }
+
+-- Copy the item's details in from the client's item cache. False if the client hasn't got it yet.
+local function FillDemoRecord(record)
+	local name, link, quality, _, _, _, _, _, _, texture, _, _, _, bindType = C_Item.GetItemInfo(record.itemID)
+	if not name then return false end
+	record.name, record.link, record.quality, record.texture = name, link, quality, texture
+	record.bindOnPickUp = bindType == Enum.ItemBind.OnAcquire
+	record.pending = false
+	return true
+end
+
+local function DemoRecord(key, item)
+	local record = {
+		key = key, demo = true, itemID = item.itemID, startTime = GetTime(), duration = DEMO_DURATION,
+		count = 1, canNeed = true, canGreed = true, canDisenchant = item.canDisenchant or false,
+		reasonNeed = 0, reasonGreed = 0, pending = true,
+		choices = ns.NewChoices(),
+	}
+	for choice, players in pairs(item.choices) do
+		record.choices[choice] = players
+	end
+	if not FillDemoRecord(record) then
+		C_Item.RequestLoadItemDataByID(record.itemID) -- the row says "Retrieving item information" until it lands
+	end
+	return record
+end
 
 local function BuildDemoRecords(count)
 	local records = {}
@@ -620,6 +628,19 @@ local function BuildDemoRecords(count)
 	end
 	return records
 end
+
+-- The server answered about an item we asked for; fill in any sample still waiting on it.
+local itemLoader = CreateFrame("Frame")
+itemLoader:RegisterEvent("ITEM_DATA_LOAD_RESULT")
+itemLoader:SetScript("OnEvent", function(_, _, itemID, success)
+	if not success then return end
+	for _, record in ipairs(demoRecords) do
+		if record.pending and record.itemID == itemID and FillDemoRecord(record) then
+			local row = barsByRecord[record]
+			if row then UpdateRow(row, record) end
+		end
+	end
+end)
 
 function Bars.IsDemo()
 	return demoMode

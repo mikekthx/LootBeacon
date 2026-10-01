@@ -198,33 +198,66 @@ describe("moving the panel and sample rolls", function()
 	end)
 end)
 
+
 describe("sample rolls", function()
-	local function Links()
-		local links = {}
-		for _, record in ipairs(ns.Bars.GetShownRecords()) do links[#links + 1] = record.link end
-		return links
+	local function Field(name)
+		local values = {}
+		for index, record in ipairs(ns.Bars.GetShownRecords()) do values[index] = record[name] end
+		return values
 	end
 
-	it("show four real items, from a plain drop up to a legendary", function()
+	it("are just item IDs, filled in from the game's own item data", function()
 		Load()
 		ns.Bars.SetDemo(true)
-		assert.same({ "item:2073", "item:13136", "item:873", "item:19019" }, Links())
-		local records = ns.Bars.GetShownRecords()
+		assert.same({ 2073, 13136, 873, 19019 }, Field("itemID"))
 		assert.same({ "Dwarven Hatchet of the Bear", "Lil Timmy's Peashooter", "Staff of Jordan",
-			"Thunderfury, Blessed Blade of the Windseeker" },
-			{ records[1].name, records[2].name, records[3].name, records[4].name })
-		assert.same({ 2, 3, 4, 5 }, { records[1].quality, records[2].quality, records[3].quality, records[4].quality })
-		assert.same({ false, false, false, true },
-			{ records[1].bindOnPickUp, records[2].bindOnPickUp, records[3].bindOnPickUp, records[4].bindOnPickUp })
-		assert.equals("Interface\\Icons\\INV_Sword_39", records[4].texture)
+			"Thunderfury, Blessed Blade of the Windseeker" }, Field("name"))
+		assert.same({ 2, 3, 4, 5 }, Field("quality"))
+		assert.same({ 132395, 135617, 135157, 135349 }, Field("texture"))
+		assert.same({ false, false, false, true }, Field("bindOnPickUp"))
+		assert.equals("|cnIQ5:|Hitem:19019|h[Thunderfury, Blessed Blade of the Windseeker]|h|r", Field("link")[4])
+		assert.same({ false, false, false, false }, Field("pending"))
+	end)
+
+	it("let you Need on everything, and offer Disenchant on the staff", function()
+		Load()
+		ns.Bars.SetDemo(true)
+		for _, record in ipairs(ns.Bars.GetShownRecords()) do
+			assert.is_true(ns.Bars.GetBar(record).buttons.need:IsEnabled())
+		end
+		assert.same({ false, false, true, false }, Field("canDisenchant"))
+	end)
+
+	it("wait for items the client hasn't seen yet", function()
+		Load()
+		wow.uncachedItems[19019] = true
+		ns.Bars.SetDemo(true)
+		local record = ns.Bars.GetShownRecords()[4]
+		local bar = ns.Bars.GetBar(record)
+		assert.is_true(record.pending)
+		assert.equals(RETRIEVING_ITEM_INFO, bar.name:GetText())
+		assert.same({ { 19019 } }, wow.calls.RequestLoadItemDataByID)
+		wow.loadItem(19019)
+		assert.is_false(record.pending)
+		assert.equals("Thunderfury, Blessed Blade of the Windseeker", bar.name:GetText())
+		assert.is_true(bar.icon.bind:IsShown())
+	end)
+
+	it("shrug off item data that arrives after they're gone", function()
+		Load()
+		wow.uncachedItems[19019] = true
+		ns.Bars.SetDemo(true)
+		ns.Bars.SetDemo(false)
+		wow.loadItem(19019)
+		assert.equals(0, #ns.Bars.GetShownRecords())
 	end)
 
 	it("show however many you ask for, cycling through the items", function()
 		Load()
 		ns.Bars.SetDemo(true, 2)
-		assert.same({ "item:2073", "item:13136" }, Links())
+		assert.same({ 2073, 13136 }, Field("itemID"))
 		ns.Bars.SetDemo(true, 6)
-		assert.same({ "item:2073", "item:13136", "item:873", "item:19019", "item:2073", "item:13136" }, Links())
+		assert.same({ 2073, 13136, 873, 19019, 2073, 13136 }, Field("itemID"))
 		local records = ns.Bars.GetShownRecords()
 		assert.are_not.equal(records[1], records[5])
 		assert.are_not.equal(ns.Bars.GetBar(records[1]), ns.Bars.GetBar(records[5]))
