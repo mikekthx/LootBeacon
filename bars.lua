@@ -20,6 +20,10 @@ local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
 local BUTTON_SIZE, BUTTON_GAP = 24, 2
 local BUTTON_AREA = 4 * BUTTON_SIZE + 3 * BUTTON_GAP -- always room for Need, Greed, Disenchant and Pass
 local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track and fill inset
+-- The divider is the rod along the top of the objective tracker's header art (300x40).
+-- ROD_TOP and ROD_BOTTOM are the art's pixel rows that hold it.
+local ROD_ATLAS, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 40
+local ROD_TOP, ROD_BOTTOM = 0, 8
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
 local QUESTION_MARK_ICON = 134400
@@ -236,6 +240,12 @@ local function ShowItemTooltip(icon)
 	GameTooltip:Show()
 end
 
+-- Let the art scale smoothly instead of snapping to whole pixels!
+local function SmoothScaling(texture)
+	texture:SetSnapToPixelGrid(false)
+	texture:SetTexelSnappingBias(0)
+end
+
 local function CreateRollButton(row, choice)
 	local button = CreateFrame("Button", nil, row)
 	button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
@@ -252,10 +262,8 @@ local function CreateRollButton(row, choice)
 		button:SetPushedTexture(art.file .. "-Down")
 		button:SetHighlightTexture(art.file .. "-Highlight", "ADD")
 	end
-	-- Let the art scale smoothly instead of snapping to whole pixels!
 	for _, texture in ipairs({ button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture() }) do
-		texture:SetSnapToPixelGrid(false)
-		texture:SetTexelSnappingBias(0)
+		SmoothScaling(texture)
 	end
 	button:SetMotionScriptsWhileDisabled(true)
 	-- Tucked inside the button's corner, so it never crowds the next one!
@@ -332,11 +340,13 @@ local function CreateRow()
 	row.timer = timer
 
 	-- A faint line between rows.
+	-- The metal rod from the objective tracker's "All Objectives" header, cropped out of its art
 	row.divider = row:CreateTexture(nil, "BACKGROUND")
-	row.divider:SetColorTexture(1, 1, 1, 0.08)
-	PixelUtil.SetHeight(row.divider, 1) -- exactly one screen pixel, however the UI is scaled
-	PixelUtil.SetPoint(row.divider, "TOPLEFT", row, "BOTTOMLEFT", 0, -ROW_GAP / 2)
-	PixelUtil.SetPoint(row.divider, "TOPRIGHT", row, "BOTTOMRIGHT", 0, -ROW_GAP / 2)
+	row.divider:SetAtlas(ROD_ATLAS)
+	row.divider:SetTexCoord(0, 1, ROD_TOP / ROD_ART_HEIGHT, ROD_BOTTOM / ROD_ART_HEIGHT)
+	row.divider:SetSize(ROW_WIDTH, ROD_BOTTOM - ROD_TOP)
+	row.divider:SetPoint("CENTER", row, "BOTTOM", 0, -ROW_GAP / 2)
+	SmoothScaling(row.divider)
 
 	row:SetScript("OnUpdate", UpdateTimer)
 	return row

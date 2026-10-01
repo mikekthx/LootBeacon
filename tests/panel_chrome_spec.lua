@@ -140,10 +140,23 @@ describe("pixel-perfect lines", function()
 		wow.startRoll(2, 501, 60000)
 	end)
 
-	it("draws every divider exactly one screen pixel thick", function()
+	it("divides rows with the objective tracker's metal rod, cropped from its header art", function()
 		local divider = BarFor(500).divider
-		assert.equals(1, divider._pixelHeight)
-		assert.is_true(divider._pixelSnapped)
+		assert.equals("ui-questtracker-primary-objective-header", divider:GetAtlas())
+		local top, bottom = divider._texCoord[3], divider._texCoord[4]
+		assert.same({ 0, 1 }, { divider._texCoord[1], divider._texCoord[2] })
+		assert.is_true(top >= 0 and bottom > top and bottom <= 1)
+		-- shown at the art's native size: 300 wide, and as tall as the rows it crops
+		assert.equals(300, divider:GetWidth())
+		assert.equals((bottom - top) * 40, divider:GetHeight())
+	end)
+
+	it("centres the rod in the gap between rows and scales it smoothly", function()
+		local divider = BarFor(500).divider
+		local point, relativeTo, relativePoint, x, y = divider:GetPoint(1)
+		assert.same({ "CENTER", BarFor(500), "BOTTOM", 0, -4 }, { point, relativeTo, relativePoint, x, y })
+		assert.is_false(divider._snapToPixelGrid)
+		assert.equals(0, divider._texelSnappingBias)
 	end)
 
 	it("snaps rows and the panel to whole screen pixels", function()
