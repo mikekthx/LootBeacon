@@ -415,6 +415,7 @@ local function CreateRow()
 	timer.fill = timer:CreateTexture(nil, "ARTWORK")
 	timer.fill:SetHeight(fillInfo and fillInfo.height or TIMER_HEIGHT - 2 * TIMER_INSET)
 	timer.fill:SetPoint("LEFT", timer, "LEFT", TIMER_INSET, 0)
+	SmoothScaling(timer.fill) -- so its end slides between pixels instead of ticking from one to the next
 	timer.fillArt = ThreeSlice(timer, timer.fill, "ARTWORK", "lootroll-timer-fill", TIMER_FILL_CAP)
 	timer.border = ThreeSlice(timer, timer, "OVERLAY", "lootroll-timer-border", TIMER_CAP)
 	row.timer = timer
