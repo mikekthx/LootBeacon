@@ -10,10 +10,10 @@ local GetTime = GetTime
 
 -- Panel layout, in panel units. The panel is Blizzard's own DefaultPanelFlatTemplate --
 -- the same metal-framed panel the Loot Rolls window uses.
-local PANEL_WIDTH = 320
-local CONTENT_LEFT, CONTENT_RIGHT = 12, 8
-local HEADER_HEIGHT, EDGE_PADDING = 26, 10 -- room for the title band, or for a plain metal edge
-local ROW_HEIGHT, ROW_GAP = 46, 6
+local PANEL_WIDTH = 330
+local CONTENT_LEFT, CONTENT_RIGHT = 16, 14 -- the left metal edge is thicker, just like Blizzard insets its own background
+local HEADER_HEIGHT, EDGE_PADDING = 26, 8 -- room for the title band, or for a plain metal edge
+local ROW_HEIGHT, ROW_GAP = 39, 8
 local ROW_WIDTH = PANEL_WIDTH - CONTENT_LEFT - CONTENT_RIGHT
 local ICON_SIZE = 37 -- the ItemButton's own size, same as the character sheet's slots
 local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
@@ -314,7 +314,7 @@ local function CreateRow()
 	end
 
 	-- The same three-piece timer Blizzard's Loot Rolls window uses!
-	local timerLift = (BUTTON_SIZE - TIMER_HEIGHT) / 2 -- centred on the buttons beside it
+	local timerLift = math.floor((BUTTON_SIZE - TIMER_HEIGHT) / 2) -- centred on the buttons, on a whole unit
 	local timer = CreateFrame("Frame", nil, row)
 	timer:SetHeight(TIMER_HEIGHT)
 	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", 8, timerLift)
@@ -334,9 +334,9 @@ local function CreateRow()
 	-- A faint line between rows.
 	row.divider = row:CreateTexture(nil, "BACKGROUND")
 	row.divider:SetColorTexture(1, 1, 1, 0.08)
-	row.divider:SetHeight(1)
-	row.divider:SetPoint("TOPLEFT", row, "BOTTOMLEFT", 0, -ROW_GAP / 2)
-	row.divider:SetPoint("TOPRIGHT", row, "BOTTOMRIGHT", 0, -ROW_GAP / 2)
+	PixelUtil.SetHeight(row.divider, 1) -- exactly one screen pixel, however the UI is scaled
+	PixelUtil.SetPoint(row.divider, "TOPLEFT", row, "BOTTOMLEFT", 0, -ROW_GAP / 2)
+	PixelUtil.SetPoint(row.divider, "TOPRIGHT", row, "BOTTOMRIGHT", 0, -ROW_GAP / 2)
 
 	row:SetScript("OnUpdate", UpdateTimer)
 	return row
@@ -444,9 +444,9 @@ function Layout()
 		UpdateRow(row, record)
 		row:ClearAllPoints()
 		if previous then
-			row:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -ROW_GAP)
+			PixelUtil.SetPoint(row, "TOPLEFT", previous, "BOTTOMLEFT", 0, -ROW_GAP)
 		else
-			row:SetPoint("TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(header == "top" and HEADER_HEIGHT or EDGE_PADDING))
+			PixelUtil.SetPoint(row, "TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(header == "top" and HEADER_HEIGHT or EDGE_PADDING))
 		end
 		row.divider:SetShown(index < #ordered)
 		row:Show()
@@ -474,7 +474,7 @@ local function ApplyPosition()
 	local saved = LootBeaconOptions.anchor
 	local scale = panel:GetScale()
 	panel:ClearAllPoints()
-	panel:SetPoint(GrowsUp() and "BOTTOM" or "TOP", UIParent, "CENTER", saved.x / scale, saved.y / scale)
+	PixelUtil.SetPoint(panel, GrowsUp() and "BOTTOM" or "TOP", UIParent, "CENTER", saved.x / scale, saved.y / scale)
 end
 
 local function SavePosition()

@@ -190,6 +190,17 @@ function M.reset()
 			table.insert(M.calls.ApplyLayout, { container, layout })
 		end,
 	}
+	-- Snaps to real screen pixels in the client; here it records the call and passes straight through.
+	G.PixelUtil = {
+		SetHeight = function(region, height)
+			region._pixelHeight = height
+			region:SetHeight(height)
+		end,
+		SetPoint = function(region, point, relativeTo, relativePoint, x, y)
+			region._pixelSnapped = true
+			region:SetPoint(point, relativeTo, relativePoint, x, y)
+		end,
+	}
 	G.C_Texture = {
 		GetAtlasInfo = function(atlas) return { tilesHorizontally = atlas:sub(1, 1) == "_", tilesVertically = atlas:sub(1, 1) == "!" } end,
 	}
