@@ -88,6 +88,13 @@ function Tracker:GetOpenRecords()
 	return list
 end
 
+-- Done rolling? Close the book, once!
+local function Close(record)
+	if record.closed then return end
+	record.closed = true
+	Fire("Closed", record)
+end
+
 -- Out of sight, out of mind... eventually!
 local function Forget(record, delay)
 	C_Timer.After(delay, function()
@@ -133,6 +140,7 @@ local function StartWatchdog(record, timeLeftMs)
 		if Tracker.records[record.key] ~= record or record.resolved or record.timedOut then return end
 		record.timedOut = true
 		Fire("TimedOut", record)
+		Close(record)
 		Forget(record, TIMED_OUT_LIFETIME_SECONDS)
 	end)
 end
@@ -176,6 +184,7 @@ local function RefreshFromHistory(record)
 	if (record.winner or record.allPassed) and not record.resolved then
 		record.resolved = true
 		Fire("Resolved", record)
+		Close(record) -- decided before you rolled? No bar should hang around!
 		Forget(record, RESOLVED_LIFETIME_SECONDS)
 	end
 end
@@ -219,6 +228,12 @@ local handlers = {}
 
 function handlers.START_LOOT_ROLL(rollID, durationMs, key)
 	if key == nil then key = "roll:" .. rollID end
+	-- Already following this roll from a /reload guess? The real announcement wins!
+	local stale = Tracker:GetRecordByRollID(rollID)
+	if stale then
+		Tracker.records[stale.key] = nil
+		Close(stale)
+	end
 	AddRecord(NewRecord(key, rollID, durationMs), durationMs)
 end
 
@@ -232,22 +247,35 @@ end
 
 function handlers.LOOT_HISTORY_UPDATE_DROP(encounterID, key)
 	local record = Tracker.records[key]
-	if not record then return end
+	if not record then
+		-- No roll window for this one (auto-passed, dead, out of range)? Follow it anyway so the winner still gets announced!
+		local info = C_LootHistory.GetSortedInfoForDrop(encounterID, key)
+		if not info or info.winner or info.allPassed then return end
+		record = NewRecord(key, nil, info.duration or 0)
+		record.encounterID = encounterID
+		record.closed = true
+		record.link = info.itemHyperlink
+		Tracker.records[key] = record
+		StartWatchdog(record, math.max(0, (info.startTime or 0) + (info.duration or 0) - GetTime() * 1000))
+		Fire("Started", record)
+	end
 	record.encounterID = encounterID
 	RefreshFromHistory(record)
 end
 
+function handlers.LOOT_ROLLS_COMPLETE(key)
+	local record = Tracker.records[key]
+	if record then Close(record) end
+end
+
 function handlers.CANCEL_LOOT_ROLL(rollID)
 	local record = Tracker:GetRecordByRollID(rollID)
-	if not record then return end
-	record.closed = true
-	Fire("Closed", record)
+	if record then Close(record) end
 end
 
 function handlers.CANCEL_ALL_LOOT_ROLLS()
 	for _, record in ipairs(Tracker:GetOpenRecords()) do
-		record.closed = true
-		Fire("Closed", record)
+		Close(record)
 	end
 end
 

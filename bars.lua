@@ -59,6 +59,7 @@ anchor:Hide()
 Bars._anchor = anchor
 
 local pool, barsByRecord = {}, {}
+local pendingConfirms = {} -- rollID -> roll type we promised to confirm
 local shownRecords = {}
 local demoMode, demoRecords = false, {}
 local lastEnabled, wasActive
@@ -71,10 +72,13 @@ end
 -- Blizzard asks to show a roll window; while we're on duty, we'll take it from here!
 local blizzardAddRoll = GroupLootContainer_AddRoll
 GroupLootContainer_AddRoll = function(rollID, rollTime)
-	if Bars.IsActive() then
+	local record = ns.Tracker:GetRecordByRollID(rollID)
+	-- Blizzard's already got this one (e.g. pulled from its own waiting line)? Let it finish the job!
+	if Bars.IsActive() and not (record and record.blizzardOwned) then
 		Bars.Refresh() -- e.g. returning from Gamepad style: Blizzard's RefreshRolls lands here, so wake the bars
 		return
 	end
+	if record then record.blizzardOwned = true end
 	if blizzardAddRoll then
 		return blizzardAddRoll(rollID, rollTime)
 	end
@@ -113,14 +117,26 @@ local function OnRollClick(button)
 		ns.Print(L["Sample roll: nothing was rolled."])
 		return
 	end
-	-- Shift means "yes, I'm sure"!
+	RollOnLoot(record.rollID, button.rollType)
+	-- Shift means "yes, I'm sure" -- we'll answer the game's "are you sure?" when it asks!
 	if IsShiftKeyDown() and button.choice ~= "pass" then
-		ConfirmLootRoll(record.rollID, button.rollType)
-		StaticPopup_Hide("CONFIRM_LOOT_ROLL", record.rollID)
-	else
-		RollOnLoot(record.rollID, button.rollType)
+		pendingConfirms[record.rollID] = button.rollType
 	end
 end
+
+local function OnConfirmRequest(_, _, rollID, rollType)
+	if pendingConfirms[rollID] ~= rollType then return end
+	pendingConfirms[rollID] = nil
+	ConfirmLootRoll(rollID, rollType)
+	StaticPopup_Hide("CONFIRM_LOOT_ROLL", rollID)
+	-- Blizzard might pop its box up right after us, so swat it again next frame!
+	C_Timer.After(0, function() StaticPopup_Hide("CONFIRM_LOOT_ROLL", rollID) end)
+end
+
+local confirmWatcher = CreateFrame("Frame")
+confirmWatcher:RegisterEvent("CONFIRM_LOOT_ROLL")
+confirmWatcher:RegisterEvent("CONFIRM_DISENCHANT_ROLL")
+confirmWatcher:SetScript("OnEvent", OnConfirmRequest)
 
 local function OnRollEnter(button)
 	local record = button.bar.record
@@ -361,7 +377,7 @@ function Bars.Refresh()
 			if not record.blizzardOwned and record.rollID then
 				record.blizzardOwned = true
 				if blizzardAddRoll then
-					blizzardAddRoll(record.rollID, C_Loot.GetLootRollDuration(record.rollID))
+					blizzardAddRoll(record.rollID, C_Loot.GetLootRollDuration(record.rollID) or record.duration)
 				end
 			end
 		end

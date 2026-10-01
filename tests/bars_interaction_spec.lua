@@ -34,9 +34,10 @@ describe("rolling from a bar", function()
 	it("skips the confirmation box on shift-click", function()
 		wow.shift = true
 		Click(BarFor(500).buttons.greed)
+		assert.same({ { 1, 2 } }, wow.calls.RollOnLoot)
+		wow.fire("CONFIRM_LOOT_ROLL", 1, 2, "")
 		assert.same({ { 1, 2 } }, wow.calls.ConfirmLootRoll)
-		assert.same({ { "CONFIRM_LOOT_ROLL", 1 } }, wow.calls.StaticPopup_Hide)
-		assert.is_nil(wow.calls.RollOnLoot)
+		assert.same({ "CONFIRM_LOOT_ROLL", 1 }, wow.calls.StaticPopup_Hide[1])
 	end)
 
 	it("passes normally even with shift held", function()

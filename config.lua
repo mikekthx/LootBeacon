@@ -16,6 +16,16 @@ local validChoices = {
 	growDirection = { down = true, up = true },
 }
 
+-- The only spots SetPoint understands!
+local VALID_POINTS = {
+	TOPLEFT = true, TOP = true, TOPRIGHT = true, LEFT = true, CENTER = true,
+	RIGHT = true, BOTTOMLEFT = true, BOTTOM = true, BOTTOMRIGHT = true,
+}
+
+local function IsFiniteNumber(value)
+	return type(value) == "number" and value == value and value ~= math.huge and value ~= -math.huge
+end
+
 -- Tables love to get shared by accident, so hand out copies!
 function ns.CopyAnchor(anchor)
 	return { point = anchor.point, relativePoint = anchor.relativePoint, x = anchor.x, y = anchor.y }
@@ -43,9 +53,9 @@ function ns.ValidateOptions(saved)
 		options.chatWindow = ns.defaults.chatWindow
 	end
 	local anchor = options.anchor
-	if type(anchor.point) ~= "string" or type(anchor.x) ~= "number" or type(anchor.y) ~= "number" then
+	if not VALID_POINTS[anchor.point] or not IsFiniteNumber(anchor.x) or not IsFiniteNumber(anchor.y) then
 		options.anchor = ns.CopyAnchor(ns.defaults.anchor)
-	elseif type(anchor.relativePoint) ~= "string" then
+	elseif not VALID_POINTS[anchor.relativePoint] then
 		anchor.relativePoint = anchor.point
 	end
 	return options
