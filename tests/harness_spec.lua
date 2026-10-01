@@ -1,0 +1,42 @@
+local wow = require("tests.mock.wow")
+
+describe("fake WoW client", function()
+	before_each(function()
+		wow.reset()
+	end)
+
+	it("runs timers in time order as the clock advances", function()
+		local order = {}
+		C_Timer.After(2, function() order[#order + 1] = "b" end)
+		C_Timer.After(1, function() order[#order + 1] = "a" end)
+		wow.advance(1.5)
+		assert.same({ "a" }, order)
+		wow.advance(1)
+		assert.same({ "a", "b" }, order)
+		assert.equals(1002.5, GetTime())
+	end)
+
+	it("delivers events only to frames that registered for them", function()
+		local seen = {}
+		local frame = CreateFrame("Frame")
+		frame:RegisterEvent("START_LOOT_ROLL")
+		frame:SetScript("OnEvent", function(_, event, ...) seen[#seen + 1] = { event, ... } end)
+		wow.fire("START_LOOT_ROLL", 1, 60000, 77)
+		wow.fire("CANCEL_LOOT_ROLL", 1)
+		assert.same({ { "START_LOOT_ROLL", 1, 60000, 77 } }, seen)
+	end)
+
+	it("counts a roll's time left down with the clock", function()
+		wow.addRoll(4, 60000, wow.ItemInfo())
+		wow.advance(10)
+		assert.equals(50000, GetLootRollTimeLeft(4))
+		wow.cancelRoll(4)
+		assert.equals(0, GetLootRollTimeLeft(4))
+	end)
+
+	it("treats unknown widget methods as no-ops but unknown fields as nil", function()
+		local frame = CreateFrame("Frame")
+		assert.has_no.errors(function() frame:SetClampedToScreen(true) end)
+		assert.is_nil(frame.reason)
+	end)
+end)
