@@ -20,10 +20,12 @@ local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
 local BUTTON_SIZE, BUTTON_GAP = 24, 2
 local BUTTON_AREA = 4 * BUTTON_SIZE + 3 * BUTTON_GAP -- always room for Need, Greed, Disenchant and Pass
 local TIMER_HEIGHT, TIMER_INSET = 13, 2 -- Blizzard's own Loot Rolls timer track and fill inset
--- The divider is the rod along the top of the objective tracker's header art (300x40).
--- ROD_TOP and ROD_BOTTOM are the art's pixel rows that hold it.
+-- The divider comes from the objective tracker's header art (300x40): the same metal rod along its top and
+-- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
+-- the bottom rod's lower half, along their centre lines, makes one clean rod. Values are rows of the art.
 local ROD_ATLAS, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 40
-local ROD_TOP, ROD_BOTTOM = 2, 10
+local ROD_UPPER = { 2.9, 6.67 } -- the top rod, from the shadow above it down to its centre line
+local ROD_LOWER = { 34.13, 38.6 } -- the bottom rod, from its centre line down through the shadow below it
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
 local MAX_DEMO_ROLLS = 20
@@ -301,6 +303,17 @@ local function CreateRollButton(row, choice)
 	return button
 end
 
+-- One half of the divider rod: `rows` of the header art, hung above or below the divider's centre.
+local function RodHalf(divider, rows, point)
+	local half = divider:CreateTexture(nil, "BACKGROUND")
+	half:SetAtlas(ROD_ATLAS)
+	half:SetTexCoord(0, 1, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
+	half:SetSize(ROW_WIDTH, rows[2] - rows[1])
+	half:SetPoint(point, divider, "CENTER")
+	SmoothScaling(half)
+	return half
+end
+
 local function CreateRow()
 	local row = CreateFrame("Frame", nil, panel)
 	row:SetSize(ROW_WIDTH, ROW_HEIGHT)
@@ -370,14 +383,12 @@ local function CreateRow()
 	timer.border:SetAtlas("lootroll-timer-border")
 	row.timer = timer
 
-	-- A faint line between rows.
-	-- The metal rod from the objective tracker's "All Objectives" header, cropped out of its art
-	row.divider = row:CreateTexture(nil, "BACKGROUND")
-	row.divider:SetAtlas(ROD_ATLAS)
-	row.divider:SetTexCoord(0, 1, ROD_TOP / ROD_ART_HEIGHT, ROD_BOTTOM / ROD_ART_HEIGHT)
-	row.divider:SetSize(ROW_WIDTH, ROD_BOTTOM - ROD_TOP)
+	-- The metal rod between rows; its two halves meet on the divider's centre, in the middle of the gap.
+	row.divider = CreateFrame("Frame", nil, row)
+	row.divider:SetSize(ROW_WIDTH, 1)
 	row.divider:SetPoint("CENTER", row, "BOTTOM", 0, -ROW_GAP / 2)
-	SmoothScaling(row.divider)
+	row.divider.upper = RodHalf(row.divider, ROD_UPPER, "BOTTOM")
+	row.divider.lower = RodHalf(row.divider, ROD_LOWER, "TOP")
 
 	row:SetScript("OnUpdate", UpdateTimer)
 	return row
