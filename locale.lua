@@ -16,7 +16,6 @@ local lang = GetLocale()
 -- Do you speak English?
 if lang == "enUS" or lang == "enGB" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Shift-click to skip the confirmation."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: drag to move, right-click to lock"
 	L["Sample roll: nothing was rolled."] = "Sample roll: nothing was rolled."
@@ -53,7 +52,6 @@ end
 -- Sprechen Sie Deutsch?
 if lang == "deDE" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Umschalt-Klick überspringt die Bestätigung."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: Ziehen zum Verschieben, Rechtsklick zum Fixieren"
 	L["Sample roll: nothing was rolled."] = "Beispielwurf: Es wurde nicht gewürfelt."
@@ -90,7 +88,6 @@ end
 -- ¿Hablas español?
 if lang == "esES" or lang == "esMX" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Mayús-clic para omitir la confirmación."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: arrastra para mover, clic derecho para bloquear"
 	L["Sample roll: nothing was rolled."] = "Tirada de ejemplo: no se ha tirado nada."
@@ -127,7 +124,6 @@ end
 -- Parlez-vous français ?
 if lang == "frFR" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Maj-clic pour ignorer la confirmation."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon : glisser pour déplacer, clic droit pour verrouiller"
 	L["Sample roll: nothing was rolled."] = "Jet d'exemple : aucun jet n'a été effectué."
@@ -164,7 +160,6 @@ end
 -- Parli italiano?
 if lang == "itIT" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Maiusc-clic per saltare la conferma."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: trascina per spostare, clic destro per bloccare"
 	L["Sample roll: nothing was rolled."] = "Tiro di esempio: non è stato tirato nulla."
@@ -200,8 +195,7 @@ end
 
 -- 한국어 하세요?
 if lang == "koKR" then
-	L["BoP"] = "획득귀속"
-	L["BoE"] = "착용귀속"
+	L["BoP"] = "귀속"
 	L["Shift-click to skip the confirmation."] = "Shift-클릭하면 확인 창을 건너뜁니다."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: 끌어서 이동, 오른쪽 클릭으로 고정"
 	L["Sample roll: nothing was rolled."] = "예시 주사위: 실제로 굴리지 않았습니다."
@@ -238,7 +232,6 @@ end
 -- Você fala português?
 if lang == "ptBR" or lang == "ptPT" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Shift-clique para pular a confirmação."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: arraste para mover, clique direito para travar"
 	L["Sample roll: nothing was rolled."] = "Rolagem de exemplo: nada foi rolado."
@@ -275,7 +268,6 @@ end
 -- Говорите по-русски?
 if lang == "ruRU" then
 	L["BoP"] = "BoP"
-	L["BoE"] = "BoE"
 	L["Shift-click to skip the confirmation."] = "Shift-клик — без подтверждения."
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon: перетащите, чтобы переместить; ПКМ — закрепить"
 	L["Sample roll: nothing was rolled."] = "Пример броска: ничего не разыграно."
@@ -311,8 +303,7 @@ end
 
 -- 你会说中文吗？
 if lang == "zhCN" then
-	L["BoP"] = "拾取绑定"
-	L["BoE"] = "装备绑定"
+	L["BoP"] = "绑定"
 	L["Shift-click to skip the confirmation."] = "按住Shift点击可跳过确认。"
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon：拖动以移动，右键点击以锁定"
 	L["Sample roll: nothing was rolled."] = "示例掷骰：并未实际掷骰。"
@@ -348,8 +339,7 @@ end
 
 -- 你會說中文嗎？
 if lang == "zhTW" then
-	L["BoP"] = "拾取綁定"
-	L["BoE"] = "裝備綁定"
+	L["BoP"] = "綁定"
 	L["Shift-click to skip the confirmation."] = "按住Shift點擊可略過確認。"
 	L["LootBeacon: drag to move, right-click to lock"] = "LootBeacon：拖曳以移動，右鍵點擊以鎖定"
 	L["Sample roll: nothing was rolled."] = "範例擲骰：並未實際擲骰。"

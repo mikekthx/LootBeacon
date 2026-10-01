@@ -133,20 +133,16 @@ end)
 describe("saved anchor checks", function()
 	before_each(function() Load() end)
 
-	local DEFAULT = { point = "TOP", relativePoint = "TOP", x = 0, y = -180 }
-
-	it("resets a point that isn't a real anchor name", function()
-		assert.same(DEFAULT, ns.ValidateOptions({ anchor = { point = "MIDDLE", relativePoint = "TOP", x = 0, y = 0 } }).anchor)
-	end)
-
-	it("falls back to the point when the relative point isn't real", function()
-		assert.same({ point = "LEFT", relativePoint = "LEFT", x = 1, y = 2 },
-			ns.ValidateOptions({ anchor = { point = "LEFT", relativePoint = "NOWHERE", x = 1, y = 2 } }).anchor)
-	end)
+	local DEFAULT = { x = 0, y = 200 }
 
 	it("resets offsets that aren't real numbers", function()
-		assert.same(DEFAULT, ns.ValidateOptions({ anchor = { point = "TOP", x = 0 / 0, y = 0 } }).anchor)
-		assert.same(DEFAULT, ns.ValidateOptions({ anchor = { point = "TOP", x = 0, y = math.huge } }).anchor)
+		assert.same(DEFAULT, ns.ValidateOptions({ anchor = { x = 0 / 0, y = 0 } }).anchor)
+		assert.same(DEFAULT, ns.ValidateOptions({ anchor = { x = 0, y = math.huge } }).anchor)
+		assert.same(DEFAULT, ns.ValidateOptions({ anchor = { x = "left", y = 0 } }).anchor)
+	end)
+
+	it("keeps good offsets", function()
+		assert.same({ x = -12.5, y = 340 }, ns.ValidateOptions({ anchor = { x = -12.5, y = 340 } }).anchor)
 	end)
 end)
 

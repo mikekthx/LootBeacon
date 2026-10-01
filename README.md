@@ -5,10 +5,10 @@ LootBeacon brings back two classic Tekkub addons — **teksLoot** and **GreedBea
 
 ## 🧠 What It Does
 
-- Replaces Blizzard's loot roll windows with **compact bars** you can move anywhere
+- Replaces Blizzard's loot roll windows with **one compact panel** of rolls you can move anywhere — it keeps its edge in place when you resize it
 - Each Need / Greed / Pass button shows **how many players picked it** — point at a button to see who
 - **Shift-click** a roll button to skip the "are you sure?" box on Bind on Pickup items
-- A **BoP / BoE** tag next to every item name
+- **Bind on Pickup** items are marked with a small **BoP** in the corner of their icon
 - Hides the flood of per-player roll messages in chat and prints **one line per item** with the winner
 - Click that line to see **everyone's rolls**; Shift-click it to open Blizzard's Loot Rolls window
 

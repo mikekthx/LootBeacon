@@ -95,16 +95,15 @@ end
 
 -- Every roll wears its own color!
 local TAG_COLORS = {
-	need = "ffff2020", greed = "ffffff00", transmog = "ffff80ff", disenchant = "ffff00ff", allPassed = "ff9d9d9d",
+	need = "ffff2020", greed = "ffffff00", disenchant = "ffff00ff", allPassed = "ff9d9d9d",
 }
 local ROLL_ICONS = {
-	need = "lootroll-icon-need", greed = "lootroll-icon-greed", transmog = "lootroll-icon-transmog",
+	need = "lootroll-icon-need", greed = "lootroll-icon-greed",
 	disenchant = "lootroll-icon-greed", pass = "lootroll-icon-pass",
 }
 
 local function RollWord(choice)
 	if choice == "need" then return NEED end
-	if choice == "transmog" then return TRANSMOGRIFICATION end
 	if choice == "disenchant" then return ROLL_DISENCHANT end
 	return GREED
 end

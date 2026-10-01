@@ -17,19 +17,19 @@ local TIMED_OUT_LIFETIME_SECONDS = 300
 local RELOAD_MATCH_MS = 1000
 
 -- RollOnLoot and the loot history speak different dialects, so keep a phrasebook!
-ns.ROLL = { pass = 0, need = 1, greed = 2, disenchant = 3, transmog = 4 }
-ns.CHOICES = { "need", "greed", "transmog", "disenchant", "pass" }
+ns.ROLL = { pass = 0, need = 1, greed = 2, disenchant = 3 }
+ns.CHOICES = { "need", "greed", "disenchant", "pass" }
 
 local STATE_TO_CHOICE = {
 	[State.NeedMainSpec] = "need",
 	[State.NeedOffSpec] = "need",
-	[State.Transmog] = "transmog",
 	[State.Greed] = "greed",
 	[State.Pass] = "pass",
 }
 
 function ns.ChoiceForState(state, canDisenchant)
-	if state == State.NoRoll then return nil end
+	-- No Transmog rolling in Forever, so never mistake it for anything else!
+	if state == State.NoRoll or state == State.Transmog then return nil end
 	local choice = STATE_TO_CHOICE[state]
 	if choice then return choice end
 	-- Disenchant has no documented state; if the roll offered it, that's our best guess!
@@ -38,7 +38,7 @@ function ns.ChoiceForState(state, canDisenchant)
 end
 
 function ns.NewChoices()
-	return { need = {}, greed = {}, transmog = {}, disenchant = {}, pass = {} }
+	return { need = {}, greed = {}, disenchant = {}, pass = {} }
 end
 
 function ns.ClassColoredName(name, class)
@@ -106,7 +106,7 @@ end
 
 local function ReadItemInfo(record)
 	local texture, name, count, quality, bindOnPickUp, canNeed, canGreed, canDisenchant,
-		reasonNeed, reasonGreed, reasonDisenchant, deSkillRequired, canTransmog = GetLootRollItemInfo(record.rollID)
+		reasonNeed, reasonGreed, reasonDisenchant, deSkillRequired = GetLootRollItemInfo(record.rollID)
 	if not name then
 		record.pending = true
 		return false
@@ -114,7 +114,7 @@ local function ReadItemInfo(record)
 	record.pending = false
 	record.texture, record.name, record.count, record.quality = texture, name, count, quality
 	record.bindOnPickUp = bindOnPickUp
-	record.canNeed, record.canGreed, record.canDisenchant, record.canTransmog = canNeed, canGreed, canDisenchant, canTransmog
+	record.canNeed, record.canGreed, record.canDisenchant = canNeed, canGreed, canDisenchant
 	record.reasonNeed, record.reasonGreed = reasonNeed, reasonGreed
 	record.reasonDisenchant, record.deSkillRequired = reasonDisenchant, deSkillRequired
 	record.link = GetLootRollItemLink(record.rollID)

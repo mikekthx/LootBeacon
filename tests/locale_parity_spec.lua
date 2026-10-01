@@ -38,7 +38,7 @@ describe("translations", function()
 
 	it("translates exactly the same keys everywhere", function()
 		local english = Sorted(blocks.enUS)
-		assert.equals(28, #english)
+		assert.equals(27, #english)
 		for lang, keys in pairs(blocks) do
 			assert.same(english, Sorted(keys), lang)
 		end

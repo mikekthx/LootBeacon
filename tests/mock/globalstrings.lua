@@ -8,6 +8,7 @@ return {
 	TRANSMOGRIFICATION = "Transmogrification",
 	LOOT_HISTORY_ALL_PASSED = "All Passed",
 	LOOT_HISTORY_PASSED = "Passed",
+	LOOT_ROLLS = "Loot Rolls",
 	RETRIEVING_ITEM_INFO = "Retrieving item information",
 	UNKNOWN = "Unknown",
 	LOOT_ROLL_INELIGIBLE_REASON1 = "Your class may not roll need on this item.",

@@ -94,6 +94,7 @@ function methods:ClearHandlerInfo() self._lines = {} end
 function methods:SetLootRollItem(rollID) self._lootRollItem = rollID end
 function methods:SetHyperlink(link) self._hyperlink = link end
 function methods:AddMessage(text) table.insert(self._messages, text) end
+function methods:SetTitle(text) self._title = text end
 
 local function Recorder(name)
 	return function(...)
@@ -171,7 +172,8 @@ function M.reset()
 	G.InputUtil = { IsGamepadUIEnabled = function() return M.gamepad end }
 	G.IsShiftKeyDown = function() return M.shift end
 	for _, name in ipairs({ "RollOnLoot", "ConfirmLootRoll", "StaticPopup_Hide", "SetLootHistoryFrameToEncounter",
-		"HandleModifiedItemClick", "ResetCursor", "CursorOnUpdate", "GroupLootContainer_AddRoll" }) do
+		"HandleModifiedItemClick", "ResetCursor", "CursorOnUpdate", "GroupLootContainer_AddRoll",
+		"SetItemButtonTexture", "SetItemButtonQuality", "SetItemButtonCount" }) do
 		G[name] = Recorder(name)
 	end
 	G.CreateAtlasMarkup = function(atlas, width, height)

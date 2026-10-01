@@ -36,7 +36,7 @@ describe("option validation", function()
 		local options = ns.ValidateOptions(nil)
 		assert.same({
 			barsEnabled = true, scale = 1, growDirection = "down", summariesEnabled = true, chatWindow = 0,
-			anchor = { point = "TOP", relativePoint = "TOP", x = 0, y = -180 },
+			anchor = { x = 0, y = 200 },
 		}, options)
 		assert.are_not.equal(ns.defaults.anchor, options.anchor)
 	end)
@@ -68,9 +68,13 @@ describe("option validation", function()
 	end)
 
 	it("resets an anchor that's missing pieces", function()
-		assert.same({ point = "TOP", relativePoint = "TOP", x = 0, y = -180 }, ns.ValidateOptions({ anchor = {} }).anchor)
-		assert.same({ point = "CENTER", relativePoint = "CENTER", x = 1, y = 2 },
-			ns.ValidateOptions({ anchor = { point = "CENTER", x = 1, y = 2 } }).anchor)
+		assert.same({ x = 0, y = 200 }, ns.ValidateOptions({ anchor = {} }).anchor)
+		assert.same({ x = 1, y = 2 }, ns.ValidateOptions({ anchor = { x = 1, y = 2 } }).anchor)
+	end)
+
+	it("resets an anchor saved in the old point-based format", function()
+		assert.same({ x = 0, y = 200 },
+			ns.ValidateOptions({ anchor = { point = "TOP", relativePoint = "TOP", x = 0, y = -180 } }).anchor)
 	end)
 end)
 

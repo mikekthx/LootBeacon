@@ -8,18 +8,12 @@ ns.defaults = {
 	growDirection = "down", -- "down", "up"
 	summariesEnabled = true,
 	chatWindow = 0, -- 0 = Automatic
-	anchor = { point = "TOP", relativePoint = "TOP", x = 0, y = -180 },
+	anchor = { x = 0, y = 200 }, -- the pinned edge, in screen units from the middle of the screen
 }
 
 -- Only the approved flavors, please!
 local validChoices = {
 	growDirection = { down = true, up = true },
-}
-
--- The only spots SetPoint understands!
-local VALID_POINTS = {
-	TOPLEFT = true, TOP = true, TOPRIGHT = true, LEFT = true, CENTER = true,
-	RIGHT = true, BOTTOMLEFT = true, BOTTOM = true, BOTTOMRIGHT = true,
 }
 
 local function IsFiniteNumber(value)
@@ -28,7 +22,7 @@ end
 
 -- Tables love to get shared by accident, so hand out copies!
 function ns.CopyAnchor(anchor)
-	return { point = anchor.point, relativePoint = anchor.relativePoint, x = anchor.x, y = anchor.y }
+	return { x = anchor.x, y = anchor.y }
 end
 
 -- Whatever's in the saved file, make it something we can trust!
@@ -53,10 +47,9 @@ function ns.ValidateOptions(saved)
 		options.chatWindow = ns.defaults.chatWindow
 	end
 	local anchor = options.anchor
-	if not VALID_POINTS[anchor.point] or not IsFiniteNumber(anchor.x) or not IsFiniteNumber(anchor.y) then
+	-- Old point-based saves (anything with a "point") meant something else, so start over!
+	if anchor.point ~= nil or not IsFiniteNumber(anchor.x) or not IsFiniteNumber(anchor.y) then
 		options.anchor = ns.CopyAnchor(ns.defaults.anchor)
-	elseif not VALID_POINTS[anchor.relativePoint] then
-		anchor.relativePoint = anchor.point
 	end
 	return options
 end
