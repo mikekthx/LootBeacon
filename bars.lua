@@ -12,17 +12,19 @@ local GetTime = GetTime
 -- the same metal-framed panel the Loot Rolls window uses.
 local PANEL_WIDTH = 330
 local CONTENT_LEFT, CONTENT_RIGHT = 16, 14 -- the left metal edge is thicker, just like Blizzard insets its own background
-local HEADER_HEIGHT, EDGE_PADDING = 26, 8 -- room for the title band, or for a plain metal edge
+-- Every row keeps the same clear space all round as at its left, about 6 units: the plain top and bottom metal
+-- edges are about 5 thick, and the divider rod between rows about 4.
+local HEADER_HEIGHT, EDGE_PADDING = 29, 11 -- room for the title band, or for a plain metal edge
 -- Each row: the item icon, then the name above the timer, then a two-by-two grid of roll buttons.
-local ROW_HEIGHT, ROW_GAP = 44, 8
+local ROW_HEIGHT, ROW_GAP = 44, 17
 local ROW_WIDTH = PANEL_WIDTH - CONTENT_LEFT - CONTENT_RIGHT
 local ICON_SIZE = ROW_HEIGHT -- fills the row, lining up with the top and bottom of the button grid
 local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
 local BUTTON_SIZE, BUTTON_GAP = 21, 2
 local BUTTON_AREA = 2 * BUTTON_SIZE + BUTTON_GAP -- the grid is this wide (and tall)
--- Where each button sits in the grid: column and row, from the top left. Disenchant's corner stays empty
--- when it isn't offered.
-local BUTTON_GRID = { need = { 1, 1 }, pass = { 2, 1 }, greed = { 1, 2 }, disenchant = { 2, 2 } }
+-- Where each button sits in the grid: column and row, from the top left. The bottom-right corner stays empty.
+local BUTTON_GRID = { need = { 1, 1 }, pass = { 2, 1 }, greed = { 1, 2 } }
+local PASS_NUDGE = 2 -- Pass's art leaves a wide clear margin on its right, so it sits a little further over
 local CONTENT_GAP = 8 -- between the icon, the name and timer, and the button grid
 local NAME_GAP = 2 -- between the name's space and the timer
 -- Blizzard's Loot Rolls timer art is 13 tall with its fill inset 2. Ours is thinner and narrower than
@@ -32,31 +34,31 @@ local TIMER_ART_HEIGHT, TIMER_HEIGHT = 13, 10
 local TIMER_SCALE = TIMER_HEIGHT / TIMER_ART_HEIGHT
 local TIMER_INSET = 2 * TIMER_SCALE
 local TIMER_CAP, TIMER_FILL_CAP = 7, 5
+local TIMER_RAISE = 3 -- just clear of the cut corner at the bottom right of the icon's quality border
 -- The divider comes from the objective tracker's header art (300x40): the same metal rod along its top and
 -- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
--- the bottom rod's lower half makes one clean rod. Values are rows of the art; the cut follows the long bar,
--- which leaves the diamond end caps half a row taller than the original.
+-- the bottom rod's lower half makes one clean rod. Values are columns and rows of the art.
 local ROD_ATLAS, ROD_ART_WIDTH, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 300, 40
-local ROD_LEFT, ROD_RIGHT = 9.7, 284.7 -- the rod's own columns; the art has more empty space on its right
+local ROD_LEFT, ROD_CAP = 9.7, 16.45 -- the left-hand diamond, from its tip to where the bar starts
+-- The rod fades out across these columns, gone just before its right-hand diamond starts.
+local ROD_FADE = { 200, 277 }
+-- The diamond pokes this far out past the row's left end (and its icon), well short of the metal edge.
+local ROD_OVERHANG = 3
 local ROD_UPPER = { 2.9, 7.07 } -- the top rod, from the shadow above it down through its bright highlight
-local ROD_LOWER = { 34, 38.6 } -- the bottom rod, from just under its highlight down through the shadow below it
+-- The bottom rod, picking up where the top one stops, down through the shadow below it. Its diamonds sit 27.47
+-- rows below the top rod's (its bar only 26.93, so the bar comes out a hair thinner): cut anywhere else, the
+-- diamonds would repeat or lose a sliver through their middles.
+local ROD_LOWER = { ROD_UPPER[2] + 27.47, 38.6 }
 local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
 local DEMO_DURATION = 60000
 local MAX_DEMO_ROLLS = 20
 local QUESTION_MARK_ICON = 134400
 
--- Blizzard's own roll-button art, plus the old Disenchant files since there's no new one!
-local BUTTON_ART = {
-	need = { atlas = "lootroll-toast-icon-need" },
-	greed = { atlas = "lootroll-toast-icon-greed" },
-	disenchant = { file = "Interface\\Buttons\\UI-GroupLoot-DE" },
-	pass = { atlas = "lootroll-toast-icon-pass" },
-}
+local BUTTON_ATLAS = "lootroll-toast-icon-" -- Blizzard's own roll-button art: the choice, then its state
 
 local function ChoiceLabel(choice)
 	if choice == "need" then return NEED end
 	if choice == "greed" then return GREED end
-	if choice == "disenchant" then return ROLL_DISENCHANT end
 	return PASS
 end
 
@@ -256,7 +258,6 @@ end
 
 local confirmWatcher = CreateFrame("Frame")
 confirmWatcher:RegisterEvent("CONFIRM_LOOT_ROLL")
-confirmWatcher:RegisterEvent("CONFIRM_DISENCHANT_ROLL")
 confirmWatcher:SetScript("OnEvent", OnConfirmRequest)
 
 local function OnRollEnter(button)
@@ -293,24 +294,28 @@ local function SmoothScaling(texture)
 	texture:SetTexelSnappingBias(0)
 end
 
+-- Scaled up, an atlas's outermost pixels blend with whatever Blizzard packed next to it on the sheet,
+-- leaving a faint light line round the art. Half a texel in from each edge, they only see the art itself.
+local function TrimAtlasEdges(texture)
+	local info = C_Texture.GetAtlasInfo(texture:GetAtlas())
+	if not info then return end
+	local x, y = 0.5 / info.width, 0.5 / info.height
+	texture:SetTexCoord(x, 1 - x, y, 1 - y)
+end
+
 local function CreateRollButton(row, choice)
 	local button = CreateFrame("Button", nil, row)
 	button:SetSize(BUTTON_SIZE, BUTTON_SIZE)
 	button.row = row
 	button.choice = choice
 	button.rollType = ns.ROLL[choice]
-	local art = BUTTON_ART[choice]
-	if art.atlas then
-		button:SetNormalAtlas(art.atlas .. "-up")
-		button:SetPushedAtlas(art.atlas .. "-down")
-		button:SetHighlightAtlas(art.atlas .. "-highlight", "ADD")
-	else
-		button:SetNormalTexture(art.file .. "-Up")
-		button:SetPushedTexture(art.file .. "-Down")
-		button:SetHighlightTexture(art.file .. "-Highlight", "ADD")
-	end
+	local atlas = BUTTON_ATLAS .. choice
+	button:SetNormalAtlas(atlas .. "-up")
+	button:SetPushedAtlas(atlas .. "-down")
+	button:SetHighlightAtlas(atlas .. "-highlight", "ADD")
 	for _, texture in ipairs({ button:GetNormalTexture(), button:GetPushedTexture(), button:GetHighlightTexture() }) do
 		SmoothScaling(texture)
+		TrimAtlasEdges(texture)
 	end
 	button:SetMotionScriptsWhileDisabled(true)
 	-- Tucked inside the button's corner, so it never crowds the next one!
@@ -322,14 +327,28 @@ local function CreateRollButton(row, choice)
 	return button
 end
 
--- One half of the divider rod: `rows` of the header art, hung above or below the divider's centre.
-local function RodHalf(divider, rows, point)
-	local half = divider:CreateTexture(nil, "BACKGROUND")
-	half:SetAtlas(ROD_ATLAS)
-	half:SetTexCoord(ROD_LEFT / ROD_ART_WIDTH, ROD_RIGHT / ROD_ART_WIDTH, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
-	half:SetSize(ROD_RIGHT - ROD_LEFT, rows[2] - rows[1])
-	half:SetPoint(point, divider, "CENTER")
-	SmoothScaling(half)
+-- One piece of the divider rod: `left` to `right` and `rows` of the header art, at the art's own size.
+local function RodPiece(divider, left, right, rows)
+	local piece = divider:CreateTexture(nil, "BACKGROUND")
+	piece:SetAtlas(ROD_ATLAS)
+	piece:SetTexCoord(left / ROD_ART_WIDTH, right / ROD_ART_WIDTH, rows[1] / ROD_ART_HEIGHT, rows[2] / ROD_ART_HEIGHT)
+	piece:SetSize(right - left, rows[2] - rows[1])
+	SmoothScaling(piece)
+	return piece
+end
+
+-- One half of the divider rod, its `edge` ("BOTTOM" above the divider's centre, "TOP" below) on that centre:
+-- the diamond, the plain bar, then the fade away to nothing, one after the other.
+local function RodHalf(divider, rows, edge)
+	local half = {
+		cap = RodPiece(divider, ROD_LEFT, ROD_CAP, rows),
+		bar = RodPiece(divider, ROD_CAP, ROD_FADE[1], rows),
+		fade = RodPiece(divider, ROD_FADE[1], ROD_FADE[2], rows),
+	}
+	half.cap:SetPoint(edge .. "LEFT", divider, "LEFT", -ROD_OVERHANG, 0)
+	half.bar:SetPoint(edge .. "LEFT", half.cap, edge .. "RIGHT")
+	half.fade:SetPoint(edge .. "LEFT", half.bar, edge .. "RIGHT")
+	half.fade:SetGradient("HORIZONTAL", CreateColor(1, 1, 1, 1), CreateColor(1, 1, 1, 0))
 	return half
 end
 
@@ -402,6 +421,7 @@ local function CreateRow()
 		local button = CreateRollButton(row, choice)
 		local column, line = BUTTON_GRID[choice][1], BUTTON_GRID[choice][2]
 		local x = -(2 - column) * (BUTTON_SIZE + BUTTON_GAP)
+		if choice == "pass" then x = x + PASS_NUDGE end
 		if line == 1 then
 			button:SetPoint("TOPRIGHT", row, "TOPRIGHT", x, 0)
 		else
@@ -414,8 +434,8 @@ local function CreateRow()
 	-- always the full width between the icon and the buttons.
 	local timer = CreateFrame("Frame", nil, row)
 	timer:SetHeight(TIMER_HEIGHT)
-	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", CONTENT_GAP, 0)
-	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + CONTENT_GAP), 0)
+	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", CONTENT_GAP, TIMER_RAISE)
+	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + CONTENT_GAP), TIMER_RAISE)
 	timer.background = ThreeSlice(timer, timer, "BACKGROUND", "lootroll-timer-background", TIMER_CAP)
 	-- Fill inset like Blizzard's, so it stays inside the track! timer.fill is just its outline; UpdateTimer
 	-- sizes it and the art follows.
@@ -474,10 +494,8 @@ local function UpdateRow(row, record)
 	end
 
 	local buttons = row.buttons
-	buttons.disenchant:SetShown(ready and record.canDisenchant or false)
 	SetButtonUsable(buttons.need, ready and record.canNeed, ready and IneligibleReason(record.reasonNeed) or nil)
 	SetButtonUsable(buttons.greed, ready and record.canGreed, ready and IneligibleReason(record.reasonGreed) or nil)
-	SetButtonUsable(buttons.disenchant, true)
 	SetButtonUsable(buttons.pass, true)
 
 	for choice, button in pairs(buttons) do
@@ -649,7 +667,7 @@ panel:SetScript("OnMouseUp", function(_, button)
 end)
 
 -- Pretend rolls, for lining things up without a group! Each is a real item; the game fills in the rest.
--- Something for every row style: plain, Disenchant and Bind on Pickup.
+-- Something for every row style: each quality, a two-line name and Bind on Pickup.
 local DEMO_ITEMS = {
 	{
 		itemID = 2073, -- Dwarven Hatchet
@@ -664,10 +682,9 @@ local DEMO_ITEMS = {
 	},
 	{
 		itemID = 873, -- Staff of Jordan
-		canDisenchant = true,
 		choices = {
 			need = { { name = "Echo", class = "HUNTER" } },
-			disenchant = { { name = "Alpha", class = "MAGE" } },
+			greed = { { name = "Alpha", class = "MAGE" } },
 		},
 	},
 	{
@@ -692,7 +709,7 @@ end
 local function DemoRecord(key, item)
 	local record = {
 		key = key, demo = true, itemID = item.itemID, startTime = GetTime(), duration = DEMO_DURATION,
-		count = 1, canNeed = true, canGreed = true, canDisenchant = item.canDisenchant or false,
+		count = 1, canNeed = true, canGreed = true,
 		reasonNeed = 0, reasonGreed = 0, pending = true,
 		choices = ns.NewChoices(),
 	}

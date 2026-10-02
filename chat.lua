@@ -8,8 +8,7 @@ local PREFIX = "|HlootHistory:"
 
 -- Roll lines Blizzard forgot to tag with the loot history link. We'll catch 'em anyway!
 local UNPREFIXED_ROLL_STRINGS = {
-	"LOOT_ROLL_PASSED_AUTO", "LOOT_ROLL_PASSED_AUTO_FEMALE", "LOOT_ROLL_DISENCHANT",
-	"LOOT_ROLL_ROLLED_DE", "LOOT_ROLL_ROLLED_NEED_ROLE_BONUS",
+	"LOOT_ROLL_PASSED_AUTO", "LOOT_ROLL_PASSED_AUTO_FEMALE", "LOOT_ROLL_ROLLED_NEED_ROLE_BONUS",
 }
 
 local function EscapePattern(text)
@@ -95,16 +94,14 @@ end
 
 -- Every roll wears its own color!
 local TAG_COLORS = {
-	need = "ffff2020", greed = "ffffff00", disenchant = "ffff00ff", allPassed = "ff9d9d9d",
+	need = "ffff2020", greed = "ffffff00", allPassed = "ff9d9d9d",
 }
 local ROLL_ICONS = {
-	need = "lootroll-icon-need", greed = "lootroll-icon-greed",
-	disenchant = "lootroll-icon-greed", pass = "lootroll-icon-pass",
+	need = "lootroll-icon-need", greed = "lootroll-icon-greed", pass = "lootroll-icon-pass",
 }
 
 local function RollWord(choice)
 	if choice == "need" then return NEED end
-	if choice == "disenchant" then return ROLL_DISENCHANT end
 	return GREED
 end
 
@@ -124,7 +121,7 @@ function Chat.FormatSummary(record)
 	if record.allPassed or not winner then
 		return Tag("allPassed", LOOT_HISTORY_ALL_PASSED, record) .. " " .. item
 	end
-	local choice = ns.ChoiceForState(winner.state, record.canDisenchant) or "greed"
+	local choice = ns.ChoiceForState(winner.state) or "greed"
 	local label = Fill(L["{roll} - {value}"], { roll = RollWord(choice), value = tostring(winner.roll or "?") })
 	return Fill(L["{tag} {name} won {item}"], {
 		tag = Tag(choice, label, record),

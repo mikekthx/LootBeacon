@@ -17,8 +17,8 @@ local TIMED_OUT_LIFETIME_SECONDS = 300
 local RELOAD_MATCH_MS = 1000
 
 -- RollOnLoot and the loot history speak different dialects, so keep a phrasebook!
-ns.ROLL = { pass = 0, need = 1, greed = 2, disenchant = 3 }
-ns.CHOICES = { "need", "greed", "disenchant", "pass" }
+ns.ROLL = { pass = 0, need = 1, greed = 2 }
+ns.CHOICES = { "need", "greed", "pass" }
 
 local STATE_TO_CHOICE = {
 	[State.NeedMainSpec] = "need",
@@ -27,18 +27,13 @@ local STATE_TO_CHOICE = {
 	[State.Pass] = "pass",
 }
 
-function ns.ChoiceForState(state, canDisenchant)
-	-- No Transmog rolling in Forever, so never mistake it for anything else!
-	if state == State.NoRoll or state == State.Transmog then return nil end
-	local choice = STATE_TO_CHOICE[state]
-	if choice then return choice end
-	-- Disenchant has no documented state; if the roll offered it, that's our best guess!
-	if canDisenchant and type(state) == "number" then return "disenchant" end
-	return nil
+-- No Transmog or Disenchant rolling in Forever, so anything else isn't a choice at all!
+function ns.ChoiceForState(state)
+	return STATE_TO_CHOICE[state]
 end
 
 function ns.NewChoices()
-	return { need = {}, greed = {}, disenchant = {}, pass = {} }
+	return { need = {}, greed = {}, pass = {} }
 end
 
 function ns.ClassColoredName(name, class)
@@ -105,8 +100,8 @@ local function Forget(record, delay)
 end
 
 local function ReadItemInfo(record)
-	local texture, name, count, quality, bindOnPickUp, canNeed, canGreed, canDisenchant,
-		reasonNeed, reasonGreed, reasonDisenchant, deSkillRequired = GetLootRollItemInfo(record.rollID)
+	local texture, name, count, quality, bindOnPickUp, canNeed, canGreed, _, reasonNeed, reasonGreed =
+		GetLootRollItemInfo(record.rollID)
 	if not name then
 		record.pending = true
 		return false
@@ -114,9 +109,8 @@ local function ReadItemInfo(record)
 	record.pending = false
 	record.texture, record.name, record.count, record.quality = texture, name, count, quality
 	record.bindOnPickUp = bindOnPickUp
-	record.canNeed, record.canGreed, record.canDisenchant = canNeed, canGreed, canDisenchant
+	record.canNeed, record.canGreed = canNeed, canGreed
 	record.reasonNeed, record.reasonGreed = reasonNeed, reasonGreed
-	record.reasonDisenchant, record.deSkillRequired = reasonDisenchant, deSkillRequired
 	record.link = GetLootRollItemLink(record.rollID)
 	return true
 end
@@ -171,7 +165,7 @@ local function RefreshFromHistory(record)
 	if not info then return end
 	local choices = ns.NewChoices()
 	for _, roll in ipairs(info.rollInfos or {}) do
-		local choice = ns.ChoiceForState(roll.state, record.canDisenchant)
+		local choice = ns.ChoiceForState(roll.state)
 		if choice then
 			table.insert(choices[choice], { name = roll.playerName, class = roll.playerClass })
 		end
