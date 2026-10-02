@@ -204,12 +204,14 @@ local function AddRecord(record, timeLeftMs)
 	RefreshFromHistory(record)
 end
 
--- Back from a /reload mid-roll? Match each roll to its history entry by item AND end time!
+-- Back from a /reload mid-roll? Match each roll to its history entry by item AND end time! The history can
+-- get there first and start a record of its own with no roll window; the roll takes that one over.
 local function MatchDrop(link, expectedEndMs)
 	for _, encounterID in ipairs(AllEncounterIDs()) do
 		for _, drop in ipairs(C_LootHistory.GetSortedDropsForEncounter(encounterID) or {}) do
 			local key = drop.lootListKey
-			if not Tracker.records[key] and not drop.winner and not drop.allPassed
+			local existing = Tracker.records[key]
+			if (not existing or (not existing.rollID and not existing.resolved)) and not drop.winner and not drop.allPassed
 				and drop.itemHyperlink == link
 				and math.abs(drop.startTime + drop.duration - expectedEndMs) <= RELOAD_MATCH_MS then
 				return key, encounterID

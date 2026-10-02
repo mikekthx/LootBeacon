@@ -250,11 +250,10 @@ local function OnRollClick(button)
 		ns.Print(L["Sample roll: nothing was rolled."])
 		return
 	end
+	-- Shift means "yes, I'm sure" -- we'll answer the game's "are you sure?" when it asks! A plain click
+	-- takes that back. Noted before rolling, in case the game asks straight away.
+	pendingConfirms[record.rollID] = (IsShiftKeyDown() and button.choice ~= "pass") and button.rollType or nil
 	RollOnLoot(record.rollID, button.rollType)
-	-- Shift means "yes, I'm sure" -- we'll answer the game's "are you sure?" when it asks!
-	if IsShiftKeyDown() and button.choice ~= "pass" then
-		pendingConfirms[record.rollID] = button.rollType
-	end
 end
 
 local function OnConfirmRequest(_, _, rollID, rollType)
@@ -647,7 +646,11 @@ end
 
 local function IsOnScreen()
 	local left, bottom, width, height = panel:GetRect()
-	if not left then return true end
+	if not left then
+		-- Still hidden, with no position worked out yet? Then judge the saved spot itself.
+		local anchor = LootBeaconOptions.anchor
+		return math.abs(anchor.x) <= UIParent:GetWidth() / 2 and math.abs(anchor.y) <= UIParent:GetHeight() / 2
+	end
 	local ratio = ScreenRatio()
 	left, bottom, width, height = left * ratio, bottom * ratio, width * ratio, height * ratio
 	return left + width > 0 and bottom + height > 0 and left < UIParent:GetWidth() and bottom < UIParent:GetHeight()
@@ -812,6 +815,8 @@ ns.Tracker:RegisterCallback("Updated", function(record)
 	local row = barsByRecord[record]
 	if row then UpdateRow(row, record) end
 end)
-ns.Tracker:RegisterCallback("Closed", function()
+ns.Tracker:RegisterCallback("Closed", function(record)
+	-- Roll IDs come round again, so never hand a promise to a later roll that gets this one's number!
+	if record.rollID then pendingConfirms[record.rollID] = nil end
 	Layout()
 end)

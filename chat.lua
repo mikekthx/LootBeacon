@@ -180,7 +180,7 @@ function Chat.ShowRollTooltip(encounterID, key)
 	else
 		local passed = {}
 		for _, roll in ipairs(info.rollInfos or {}) do
-			local choice = ns.ChoiceForState(roll.state, true)
+			local choice = ns.ChoiceForState(roll.state)
 			if choice == "pass" then
 				passed[#passed + 1] = roll
 			elseif choice then
