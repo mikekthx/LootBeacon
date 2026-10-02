@@ -230,7 +230,10 @@ local function UpdateTimer(row)
 	local cap = math.min(TIMER_FILL_END, width / 2)
 	art.left:SetWidth(cap)
 	art.right:SetWidth(cap)
+	-- Same colour as last frame? Then leave the paint alone!
 	local r, g, b = TimerTint(fraction)
+	if r == art.r and g == art.g and b == art.b then return end
+	art.r, art.g, art.b = r, g, b
 	art.left:SetVertexColor(r, g, b)
 	art.middle:SetVertexColor(r, g, b)
 	art.right:SetVertexColor(r, g, b)

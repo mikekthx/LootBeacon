@@ -171,22 +171,36 @@ local function HighestFirst(a, b)
 	return (a.roll or 0) > (b.roll or 0)
 end
 
--- Only the rolls that had a shot: any Need beats every Greed, and a pass never wins!
+local function Rolled(state)
+	return ROLL_ICONS[ns.ChoiceForState(state)] ~= nil
+end
+
+-- Only the rolls that had a shot, like Blizzard's own tooltip: the winner's kind of roll (main spec beats
+-- off spec, any Need beats every Greed), minus rolls above the winner's that multiple-item win protection set aside!
 local function Contenders(info)
-	local rolls = { need = {}, greed = {} }
-	for _, roll in ipairs(info.rollInfos or {}) do
-		local choice = ns.ChoiceForState(roll.state)
-		if rolls[choice] then table.insert(rolls[choice], roll) end
+	local winner = info.winner
+	local top = winner and Rolled(winner.state) and winner.state
+	if not top then
+		for _, roll in ipairs(info.rollInfos or {}) do
+			if Rolled(roll.state) and (not top or roll.state < top) then top = roll.state end
+		end
 	end
-	local choice = #rolls.need > 0 and "need" or "greed"
-	table.sort(rolls[choice], HighestFirst)
-	return rolls[choice], choice
+	local rolls = {}
+	for _, roll in ipairs(info.rollInfos or {}) do
+		local setAside = winner and winner.roll and not roll.isWinner and roll.roll and roll.roll > winner.roll
+		if roll.state == top and not setAside then table.insert(rolls, roll) end
+	end
+	table.sort(rolls, HighestFirst)
+	return rolls, ns.ChoiceForState(top)
 end
 
 -- Click once to look, click again to put it away!
 local function ShowTooltip(key, info, link)
 	local tooltip = ItemRefTooltip
-	if info and info.allPassed then return end -- nobody rolled, so nothing to show
+	if info and info.allPassed then -- nobody rolled, so nothing to show
+		if shownKey then tooltip:Hide() end -- and the last roll we showed would only mislead
+		return
+	end
 	if tooltip:IsShown() and shownKey == key then
 		tooltip:Hide()
 		return
@@ -253,7 +267,7 @@ local function PrintSamples()
 		local record = { key = index, encounterID = "sample", link = info.itemHyperlink, winner = info.winner,
 			allPassed = info.allPassed }
 		if sample.timedOut then
-			record.key = 0
+			record.key = "sample:" .. index -- no real roll behind it, so no link
 			frame:AddMessage(Chat.FormatTimeout(record))
 		else
 			frame:AddMessage(Chat.FormatSummary(record))
@@ -284,9 +298,15 @@ end
 
 -- Open Blizzard's Loot Rolls window and scroll it right to this item!
 function Chat.OpenLootHistory(encounterID, key)
-	SetLootHistoryFrameToEncounter(encounterID)
+	local frame = GroupLootHistoryFrame
+	-- Closing the window keeps its encounter, and Blizzard's opener won't show it again for that one!
+	if frame and not frame:IsShown() and frame:GetSelectedEncounterID() == encounterID then
+		frame:OpenToEncounter(encounterID)
+		frame:Show()
+	else
+		SetLootHistoryFrameToEncounter(encounterID)
+	end
 	C_Timer.After(0, function() -- give a freshly opened list a frame to lay itself out
-		local frame = GroupLootHistoryFrame
 		if not (frame and frame:IsShown() and frame.ScrollBox) or frame:GetSelectedEncounterID() ~= encounterID then return end
 		frame.ScrollBox:ScrollToElementDataByPredicate(function(data) return data.lootListKey == key end)
 	end)
@@ -296,7 +316,13 @@ local function OnSetItemRef(_, link)
 	link = tostring(link)
 	local sample = tonumber(link:match("^addon:" .. addonName .. ":sample:(%d+)$"))
 	if sample then
-		if sampleInfos[sample] then ShowTooltip("sample:" .. sample, sampleInfos[sample]) end
+		-- A /reload keeps the chat lines but forgets the samples, so dream them up again (and again, until the item shows up)!
+		local info = sampleInfos[sample]
+		if not (info and info.itemHyperlink) and SAMPLES[sample] then
+			info = SampleInfo(SAMPLES[sample])
+			sampleInfos[sample] = info
+		end
+		if info then ShowTooltip("sample:" .. sample, info) end
 		return
 	end
 	local encounterID, key = link:match("^addon:" .. addonName .. ":(%d+):(%d+)$")
