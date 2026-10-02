@@ -9,7 +9,7 @@ local GetLootRollTimeLeft = GetLootRollTimeLeft
 local GetTime = GetTime
 
 -- Measure twice, cut once! Everything's in panel units.
-local PANEL_WIDTH = 330
+local PANEL_WIDTH = 300
 local CONTENT_LEFT, CONTENT_RIGHT = 16, 14 -- the left metal edge is the thicker one
 local HEADER_HEIGHT, EDGE_PADDING = 29, 11 -- the title band, or a plain metal edge
 local ROW_HEIGHT, ROW_GAP = 44, 17
@@ -29,11 +29,18 @@ local TIMER_INSET = 2 * TIMER_SCALE
 local TIMER_CAP, TIMER_FILL_CAP = 7, 5 -- the ends' widths in the art
 local TIMER_FILL_END = TIMER_FILL_CAP * TIMER_SCALE
 local TIMER_RAISE = 3 -- clears the icon border's cut corner
+-- Hurry up! Fraction of time left, then a tint for the gold fill; between two stops it blends smoothly.
+local TIMER_TINTS = {
+	{ 0.5, 1, 1, 1 }, -- Blizzard's own gold
+	{ 0.3, 1, 0.5, 0.1 }, -- orange...
+	{ 0.25, 1, 0.5, 0.1 }, -- ...for a moment
+	{ 0.1, 1, 0.1, 0.1 }, -- red alert!
+}
 
 -- Borrow the quest tracker's header art and stitch its top and bottom rods into one! Columns and rows of the art.
 local ROD_ATLAS, ROD_ART_WIDTH, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 300, 40
 local ROD_LEFT, ROD_CAP = 9.7, 16.45 -- the left diamond, tip to bar
-local ROD_FADE = { 200, 277 } -- gone before the right diamond starts
+local ROD_FADE = { 170, 247 } -- gone just past where the buttons start
 local ROD_OVERHANG = 3 -- past the icon, short of the metal edge
 local ROD_UPPER = { 2.9, 7.07 }
 local ROD_LOWER = { ROD_UPPER[2] + 27.47, 38.6 } -- 27.47 keeps the diamonds whole (the bar is only 26.93 apart)
@@ -195,6 +202,20 @@ local function TimeLeft(record)
 	return GetLootRollTimeLeft(record.rollID) or 0
 end
 
+local function TimerTint(fraction)
+	local high = TIMER_TINTS[1]
+	if fraction >= high[1] then return high[2], high[3], high[4] end
+	for i = 2, #TIMER_TINTS do
+		local low = TIMER_TINTS[i]
+		if fraction >= low[1] then
+			local t = (high[1] - fraction) / (high[1] - low[1])
+			return high[2] + (low[2] - high[2]) * t, high[3] + (low[3] - high[3]) * t, high[4] + (low[4] - high[4]) * t
+		end
+		high = low
+	end
+	return high[2], high[3], high[4] -- past the last stop
+end
+
 local function UpdateTimer(row)
 	local record = row.record
 	if not record then return end
@@ -203,11 +224,16 @@ local function UpdateTimer(row)
 		fraction = math.min(1, math.max(0, TimeLeft(record) / record.duration))
 	end
 	local width = math.max(1, (row.timer:GetWidth() - 2 * TIMER_INSET) * fraction)
+	local art = row.timer.fillArt
 	row.timer.fill:SetWidth(width)
 	-- Nearly empty? Then the fill's two ends share what's left.
 	local cap = math.min(TIMER_FILL_END, width / 2)
-	row.timer.fillArt.left:SetWidth(cap)
-	row.timer.fillArt.right:SetWidth(cap)
+	art.left:SetWidth(cap)
+	art.right:SetWidth(cap)
+	local r, g, b = TimerTint(fraction)
+	art.left:SetVertexColor(r, g, b)
+	art.middle:SetVertexColor(r, g, b)
+	art.right:SetVertexColor(r, g, b)
 end
 
 local function HideTooltip()
