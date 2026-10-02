@@ -11,7 +11,8 @@ local GetTime = GetTime
 -- Panel layout, in panel units. The panel is Blizzard's own DefaultPanelFlatTemplate --
 -- the same metal-framed panel the Loot Rolls window uses.
 local PANEL_WIDTH = 330
-local CONTENT_LEFT, CONTENT_RIGHT = 16, 14 -- the left metal edge is thicker, just like Blizzard insets its own background
+local CONTENT_LEFT, CONTENT_RIGHT = 16,
+	14 -- the left metal edge is thicker, just like Blizzard insets its own background
 -- Every row keeps the same clear space all round as at its left, about 6 units: the plain top and bottom metal
 -- edges are about 5 thick, and the divider rod between rows about 4.
 local HEADER_HEIGHT, EDGE_PADDING = 29, 11 -- room for the title band, or for a plain metal edge
@@ -24,9 +25,9 @@ local BUTTON_SIZE, BUTTON_GAP = 21, 2
 local BUTTON_AREA = 2 * BUTTON_SIZE + BUTTON_GAP -- the grid is this wide (and tall)
 -- Where each button sits in the grid: column and row, from the top left. The bottom-right corner stays empty.
 local BUTTON_GRID = { need = { 1, 1 }, pass = { 2, 1 }, greed = { 1, 2 } }
-local PASS_NUDGE = 2 -- Pass's art leaves a wide clear margin on its right, so it sits a little further over
+local PASS_NUDGE = 2  -- Pass's art leaves a wide clear margin on its right, so it sits a little further over
 local CONTENT_GAP = 8 -- between the icon, the name and timer, and the button grid
-local NAME_GAP = 2 -- between the name's space and the timer
+local NAME_GAP = 2    -- between the name's space and the timer
 -- Blizzard's Loot Rolls timer art is 13 tall with its fill inset 2. Ours is thinner and narrower than
 -- Blizzard's 238, so its art is drawn in three pieces: rounded ends kept in proportion, and a middle that
 -- stretches. TIMER_CAP and TIMER_FILL_CAP are those ends' widths in the art.
@@ -120,10 +121,12 @@ local function BuildFrameLayout(header)
 	local layout = {
 		disableSharpening = base.disableSharpening,
 		setupPieceVisualsFunction = SetupPieceVisuals,
-		LeftEdge = base.LeftEdge, RightEdge = base.RightEdge,
+		LeftEdge = base.LeftEdge,
+		RightEdge = base.RightEdge,
 	}
 	if header == "top" then
-		layout.TopLeftCorner, layout.TopRightCorner, layout.TopEdge = base.TopLeftCorner, base.TopRightCorner, base.TopEdge
+		layout.TopLeftCorner, layout.TopRightCorner, layout.TopEdge = base.TopLeftCorner, base.TopRightCorner,
+			base.TopEdge
 	else
 		layout.TopLeftCorner = FlippedPiece(base.BottomLeftCorner)
 		layout.TopRightCorner = FlippedPiece(base.BottomRightCorner)
@@ -134,19 +137,26 @@ local function BuildFrameLayout(header)
 		layout.BottomRightCorner = FlippedPiece(base.TopRightCorner)
 		layout.BottomEdge = FlippedPiece(base.TopEdge)
 	else
-		layout.BottomLeftCorner, layout.BottomRightCorner, layout.BottomEdge = base.BottomLeftCorner, base.BottomRightCorner, base.BottomEdge
+		layout.BottomLeftCorner, layout.BottomRightCorner, layout.BottomEdge = base.BottomLeftCorner,
+			base.BottomRightCorner, base.BottomEdge
 	end
 	return layout
 end
 
-local header -- "top", "bottom" or nil
+local header      -- "top", "bottom" or nil
 local frameLayout -- the layout ApplyFrameStyle last put on the panel
 
 -- Blizzard's corners are tall, so on a short panel the top pair would poke out past the bottom edge and
 -- vice versa. Trim each one to meet its partner halfway, keeping the end that sits on the panel's edge.
 -- Never let one reach past CORNER_REACH, either: the corner art has a notch in its post about 44 units in,
 -- and the plain edge art fills the post just as well from there.
-local CORNER_SIDES = { TopLeftCorner = "top", TopRightCorner = "top", BottomLeftCorner = "bottom", BottomRightCorner = "bottom" }
+local CORNER_SIDES = {
+	TopLeftCorner = "top",
+	TopRightCorner = "top",
+	BottomLeftCorner = "bottom",
+	BottomRightCorner =
+	"bottom"
+}
 local CORNER_REACH = 42
 
 local function FitCorners(height)
@@ -294,12 +304,15 @@ local function SmoothScaling(texture)
 	texture:SetTexelSnappingBias(0)
 end
 
--- Scaled up, an atlas's outermost pixels blend with whatever Blizzard packed next to it on the sheet,
--- leaving a faint light line round the art. Half a texel in from each edge, they only see the art itself.
+-- An atlas's outermost pixels blend with whatever Blizzard packed next to it on the sheet, leaving a faint
+-- light line round the art. Shrunk, the game draws from smaller copies of the sheet where that reaches
+-- further in, so trim a texel and a half (measured in-game: 1 still shows the line, 2 crops the art).
+local ATLAS_EDGE_TRIM = 1.5
+
 local function TrimAtlasEdges(texture)
 	local info = C_Texture.GetAtlasInfo(texture:GetAtlas())
 	if not info then return end
-	local x, y = 0.5 / info.width, 0.5 / info.height
+	local x, y = ATLAS_EDGE_TRIM / info.width, ATLAS_EDGE_TRIM / info.height
 	texture:SetTexCoord(x, 1 - x, y, 1 - y)
 end
 
@@ -681,17 +694,18 @@ local DEMO_ITEMS = {
 		choices = { pass = { { name = "Delta", class = "PALADIN" } } },
 	},
 	{
-		itemID = 873, -- Staff of Jordan
+		itemID = 21615, -- Don Rigoberto's Lost Hat
 		choices = {
-			need = { { name = "Echo", class = "HUNTER" } },
+			need = { { name = "Echo", class = "HUNTER" }, { name = "Golf", class = "PRIEST" } },
 			greed = { { name = "Alpha", class = "MAGE" } },
 		},
 	},
 	{
 		itemID = 19019, -- Thunderfury, Blessed Blade of the Windseeker
 		choices = {
-			need = { { name = "Bravo", class = "ROGUE" }, { name = "Foxtrot", class = "WARRIOR" } },
+			need = { { name = "Bravo", class = "ROGUE" }, { name = "Foxtrot", class = "WARRIOR" }, { name = "Echo", class = "HUNTER" } },
 			greed = { { name = "Delta", class = "PALADIN" } },
+			pass = { { name = "Alpha", class = "MAGE" } },
 		},
 	},
 }
@@ -708,9 +722,17 @@ end
 
 local function DemoRecord(key, item)
 	local record = {
-		key = key, demo = true, itemID = item.itemID, startTime = GetTime(), duration = DEMO_DURATION,
-		count = 1, canNeed = true, canGreed = true,
-		reasonNeed = 0, reasonGreed = 0, pending = true,
+		key = key,
+		demo = true,
+		itemID = item.itemID,
+		startTime = GetTime(),
+		duration = DEMO_DURATION,
+		count = 1,
+		canNeed = true,
+		canGreed = true,
+		reasonNeed = 0,
+		reasonGreed = 0,
+		pending = true,
 		choices = ns.NewChoices(),
 	}
 	for choice, players in pairs(item.choices) do
