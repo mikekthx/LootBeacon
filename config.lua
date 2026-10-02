@@ -137,7 +137,7 @@ EventUtil.ContinueOnAddOnLoaded(addonName, function()
 	local summarySetting = Register("LOOTBEACON_SUMMARIES_ENABLED", "summariesEnabled", Settings.VarType.Boolean,
 		L["Enable roll summaries"], function() ns.Chat.Refresh() end)
 	local summaryInit = Settings.CreateCheckbox(category, summarySetting,
-		L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."])
+		L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."])
 	local function SummariesOn() return summarySetting:GetValue() end
 
 	-- Chat windows come and go, so ask again every time the list opens!

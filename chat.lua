@@ -95,9 +95,7 @@ end
 local TAG_COLORS = {
 	need = "ffff2020", greed = "ffffff00", allPassed = "ff9d9d9d",
 }
-local ROLL_ICONS = {
-	need = "lootroll-icon-need", greed = "lootroll-icon-greed", pass = "lootroll-icon-pass",
-}
+local ROLL_ICONS = { need = "lootroll-icon-need", greed = "lootroll-icon-greed" }
 
 -- {curly} placeholders let translators put the words in whatever order they like!
 local function Fill(template, values)
@@ -141,7 +139,7 @@ end
 ns.Tracker:RegisterCallback("Resolved", function(record) Announce(Chat.FormatSummary(record)) end)
 ns.Tracker:RegisterCallback("TimedOut", function(record) Announce(Chat.FormatTimeout(record)) end)
 
--- Click the tag, get the whole story!
+-- Click the tag to see who was in the running!
 local shownKey
 
 local function TitleFromLink(link)
@@ -158,36 +156,55 @@ local function RollLine(roll, choice)
 	return line
 end
 
+-- Long title? Slide it clear of the close button, just like an item link does!
+local function MakeRoomForCloseButton(tooltip)
+	local title, close = tooltip:GetLeftLine(1), tooltip.CloseButton
+	local right, left = title and title:GetRight(), close and close:GetLeft()
+	if right and left and right > left then
+		tooltip:SetPadding(16, 0)
+	end
+end
+
+-- The winner up top, then the best of the rest!
+local function HighestFirst(a, b)
+	if a.isWinner or b.isWinner then return a.isWinner and not b.isWinner end
+	return (a.roll or 0) > (b.roll or 0)
+end
+
+-- Only the rolls that had a shot: any Need beats every Greed, and a pass never wins!
+local function Contenders(info)
+	local rolls = { need = {}, greed = {} }
+	for _, roll in ipairs(info.rollInfos or {}) do
+		local choice = ns.ChoiceForState(roll.state)
+		if rolls[choice] then table.insert(rolls[choice], roll) end
+	end
+	local choice = #rolls.need > 0 and "need" or "greed"
+	table.sort(rolls[choice], HighestFirst)
+	return rolls[choice], choice
+end
+
 -- Click once to look, click again to put it away!
 local function ShowTooltip(key, info, link)
 	local tooltip = ItemRefTooltip
+	if info and info.allPassed then return end -- nobody rolled, so nothing to show
 	if tooltip:IsShown() and shownKey == key then
 		tooltip:Hide()
 		return
 	end
 	tooltip:ClearHandlerInfo()
 	tooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
+	tooltip:SetPadding(0, 0)
 	tooltip:AddLine(TitleFromLink((info and info.itemHyperlink) or link))
 	if not info then
 		tooltip:AddLine(L["Roll details are no longer available."], 1, 1, 1, true)
 	else
-		local passed = {}
-		for _, roll in ipairs(info.rollInfos or {}) do
-			local choice = ns.ChoiceForState(roll.state)
-			if choice == "pass" then
-				passed[#passed + 1] = roll
-			elseif choice then
-				tooltip:AddLine(RollLine(roll, choice), 1, 1, 1)
-			end
-		end
-		if #passed > 0 then
-			tooltip:AddLine(LOOT_HISTORY_PASSED)
-			for _, roll in ipairs(passed) do
-				tooltip:AddLine(RollLine(roll, "pass"), 1, 1, 1)
-			end
+		local rolls, choice = Contenders(info)
+		for _, roll in ipairs(rolls) do
+			tooltip:AddLine(RollLine(roll, choice), 1, 1, 1)
 		end
 	end
 	tooltip:Show()
+	MakeRoomForCloseButton(tooltip)
 	shownKey = key
 end
 
@@ -196,7 +213,10 @@ function Chat.ShowRollTooltip(encounterID, key)
 	ShowTooltip(key, C_LootHistory.GetSortedInfoForDrop(encounterID, key), record and record.link)
 end
 
-ItemRefTooltip:HookScript("OnHide", function() shownKey = nil end)
+-- Closed, or taken over by an item link? Then it isn't ours any more!
+local function Forget() shownKey = nil end
+ItemRefTooltip:HookScript("OnHide", Forget)
+ItemRefTooltip:HookScript("OnTooltipCleared", Forget)
 
 -- Dress rehearsal! Who rolled what (the first one wins), shaped just like the loot history's own.
 local SAMPLES = {
@@ -262,6 +282,16 @@ function Chat.ShowSamples()
 	PrintSamplesWhenReady(SAMPLE_TRIES)
 end
 
+-- Open Blizzard's Loot Rolls window and scroll it right to this item!
+function Chat.OpenLootHistory(encounterID, key)
+	SetLootHistoryFrameToEncounter(encounterID)
+	C_Timer.After(0, function() -- give a freshly opened list a frame to lay itself out
+		local frame = GroupLootHistoryFrame
+		if not (frame and frame:IsShown() and frame.ScrollBox) or frame:GetSelectedEncounterID() ~= encounterID then return end
+		frame.ScrollBox:ScrollToElementDataByPredicate(function(data) return data.lootListKey == key end)
+	end)
+end
+
 local function OnSetItemRef(_, link)
 	link = tostring(link)
 	local sample = tonumber(link:match("^addon:" .. addonName .. ":sample:(%d+)$"))
@@ -273,7 +303,7 @@ local function OnSetItemRef(_, link)
 	if not encounterID then return end
 	encounterID, key = tonumber(encounterID), tonumber(key)
 	if IsShiftKeyDown() then
-		SetLootHistoryFrameToEncounter(encounterID)
+		Chat.OpenLootHistory(encounterID, key)
 	else
 		Chat.ShowRollTooltip(encounterID, key)
 	end

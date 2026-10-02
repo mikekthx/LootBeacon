@@ -39,8 +39,8 @@ if lang == "enUS" or lang == "enGB" then
 	"Shows the anchor and sample bars so you can drag them into place. Right-click the anchor to lock it."
 	L["Chat"] = "Chat"
 	L["Enable roll summaries"] = "Enable roll summaries"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."
 	L["Output window"] = "Output window"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."
@@ -74,8 +74,8 @@ if lang == "deDE" then
 	"Zeigt den Anker und Beispielleisten, damit du sie an die gewünschte Stelle ziehen kannst. Rechtsklick auf den Anker fixiert ihn."
 	L["Chat"] = "Chat"
 	L["Enable roll summaries"] = "Wurfzusammenfassungen aktivieren"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Blendet die einzelnen Wurfnachrichten im Chat aus und gibt pro Gegenstand eine Zeile mit dem Gewinner aus. Klicke auf die Zeile, um alle Würfe zu sehen."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Blendet die einzelnen Wurfnachrichten im Chat aus und gibt pro Gegenstand eine Zeile mit dem Gewinner aus. Klicke auf die Zeile, um die Bedarfswürfe zu sehen oder, falls niemand Bedarf gewählt hat, die Gierwürfe."
 	L["Output window"] = "Ausgabefenster"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"Das Chatfenster, in dem die Wurfzusammenfassungen erscheinen. Automatisch verwendet das erste Fenster, das Beutenachrichten anzeigt."
@@ -109,8 +109,8 @@ if lang == "esES" or lang == "esMX" then
 	"Muestra el ancla y barras de ejemplo para que puedas arrastrarlas a su sitio. Haz clic derecho en el ancla para bloquearla."
 	L["Chat"] = "Chat"
 	L["Enable roll summaries"] = "Activar resúmenes de tiradas"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Oculta los mensajes de tirada de cada jugador en el chat y muestra una línea por objeto con el ganador. Haz clic en la línea para ver todas las tiradas."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Oculta los mensajes de tirada de cada jugador en el chat y muestra una línea por objeto con el ganador. Haz clic en la línea para ver las tiradas de Necesidad o, si nadie eligió Necesidad, las de Codicia."
 	L["Output window"] = "Ventana de salida"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"La ventana de chat donde se muestran los resúmenes de tiradas. Automático usa la primera ventana que muestra mensajes de botín."
@@ -144,8 +144,8 @@ if lang == "frFR" then
 	"Affiche l'ancre et des barres d'exemple pour que vous puissiez les placer. Faites un clic droit sur l'ancre pour la verrouiller."
 	L["Chat"] = "Discussion"
 	L["Enable roll summaries"] = "Activer les résumés de jets"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Masque les messages de jet de chaque joueur dans la discussion et affiche une ligne par objet indiquant le gagnant. Cliquez sur la ligne pour voir tous les jets."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Masque les messages de jet de chaque joueur dans la discussion et affiche une ligne par objet indiquant le gagnant. Cliquez sur la ligne pour voir les jets de Besoin, ou ceux de Cupidité si personne n'a choisi Besoin."
 	L["Output window"] = "Fenêtre de sortie"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"La fenêtre de discussion où s'affichent les résumés de jets. Automatique utilise la première fenêtre qui affiche les messages de butin."
@@ -179,8 +179,8 @@ if lang == "itIT" then
 	"Mostra l'ancora e barre di esempio per trascinarle nella posizione voluta. Clic destro sull'ancora per bloccarla."
 	L["Chat"] = "Chat"
 	L["Enable roll summaries"] = "Attiva i riepiloghi dei tiri"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Nasconde in chat i messaggi di tiro dei singoli giocatori e mostra una riga per oggetto con il vincitore. Clicca sulla riga per vedere tutti i tiri."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Nasconde in chat i messaggi di tiro dei singoli giocatori e mostra una riga per oggetto con il vincitore. Clicca sulla riga per vedere i tiri per Necessità, o quelli per Bramosia se nessuno ha scelto Necessità."
 	L["Output window"] = "Finestra di output"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"La finestra di chat in cui vengono mostrati i riepiloghi dei tiri. Automatico usa la prima finestra che mostra i messaggi del bottino."
@@ -214,8 +214,8 @@ if lang == "koKR" then
 	"고정점과 예시 바를 표시하여 원하는 위치로 끌 수 있습니다. 고정점을 오른쪽 클릭하면 고정됩니다."
 	L["Chat"] = "대화"
 	L["Enable roll summaries"] = "주사위 요약 사용"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"대화창에서 플레이어별 주사위 메시지를 숨기고 아이템마다 획득자를 보여 주는 한 줄을 출력합니다. 줄을 클릭하면 모든 주사위 결과를 볼 수 있습니다."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"대화창에서 플레이어별 주사위 메시지를 숨기고 아이템마다 획득자를 보여 주는 한 줄을 출력합니다. 줄을 클릭하면 입찰 주사위 결과를, 입찰자가 없으면 차비 주사위 결과를 볼 수 있습니다."
 	L["Output window"] = "출력 창"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"주사위 요약을 출력할 대화창입니다. 자동은 전리품 메시지를 표시하는 첫 번째 창을 사용합니다."
@@ -249,8 +249,8 @@ if lang == "ptBR" or lang == "ptPT" then
 	"Mostra a âncora e barras de exemplo para você arrastá-las até o lugar. Clique com o botão direito na âncora para travá-la."
 	L["Chat"] = "Bate-papo"
 	L["Enable roll summaries"] = "Ativar resumos de rolagem"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Oculta no bate-papo as mensagens de rolagem de cada jogador e mostra uma linha por item com o vencedor. Clique na linha para ver todas as rolagens."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Oculta no bate-papo as mensagens de rolagem de cada jogador e mostra uma linha por item com o vencedor. Clique na linha para ver as rolagens de Necessidade ou, se ninguém escolheu Necessidade, as de Ganância."
 	L["Output window"] = "Janela de saída"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"A janela de bate-papo onde os resumos de rolagem aparecem. Automático usa a primeira janela que mostra mensagens de saque."
@@ -284,8 +284,8 @@ if lang == "ruRU" then
 	"Показывает якорь и примеры полос, чтобы их можно было перетащить на место. ПКМ по якорю закрепляет его."
 	L["Chat"] = "Чат"
 	L["Enable roll summaries"] = "Включить итоги розыгрышей"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"Скрывает в чате сообщения о бросках каждого игрока и выводит одну строку на предмет с победителем. Нажмите на строку, чтобы увидеть все броски."
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"Скрывает в чате сообщения о бросках каждого игрока и выводит одну строку на предмет с победителем. Нажмите на строку, чтобы увидеть броски «Мне это нужно» или, если таких нет, броски «Не откажусь»."
 	L["Output window"] = "Окно вывода"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"Окно чата, в которое выводятся итоги розыгрышей. «Автоматически» — первое окно, где показываются сообщения о добыче."
@@ -319,8 +319,8 @@ if lang == "zhCN" then
 	"显示锚点和示例掷骰条，以便将其拖动到合适位置。右键点击锚点即可锁定。"
 	L["Chat"] = "聊天"
 	L["Enable roll summaries"] = "启用掷骰摘要"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"在聊天中隐藏每位玩家的掷骰信息，并为每件物品输出一行获胜者信息。点击该行可查看所有人的掷骰。"
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"在聊天中隐藏每位玩家的掷骰信息，并为每件物品输出一行获胜者信息。点击该行可查看需求掷骰，若无人需求则显示贪婪掷骰。"
 	L["Output window"] = "输出窗口"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"显示掷骰摘要的聊天窗口。“自动”会使用第一个显示拾取信息的窗口。"
@@ -354,8 +354,8 @@ if lang == "zhTW" then
 	"顯示錨點與範例擲骰列，以便將其拖曳到合適位置。右鍵點擊錨點即可鎖定。"
 	L["Chat"] = "聊天"
 	L["Enable roll summaries"] = "啟用擲骰摘要"
-	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see everyone's rolls."] =
-	"在聊天中隱藏每位玩家的擲骰訊息，並為每件物品輸出一行獲勝者資訊。點擊該行可查看所有人的擲骰。"
+	L["Hides the per-player roll messages in chat and prints one line per item showing who won. Click the line to see the Need rolls, or the Greed rolls if nobody needed."] =
+	"在聊天中隱藏每位玩家的擲骰訊息，並為每件物品輸出一行獲勝者資訊。點擊該行可查看需求擲骰，若無人需求則顯示貪婪擲骰。"
 	L["Output window"] = "輸出視窗"
 	L["The chat window roll summaries are printed to. Automatic uses the first window that shows loot messages."] =
 	"顯示擲骰摘要的聊天視窗。「自動」會使用第一個顯示拾取訊息的視窗。"

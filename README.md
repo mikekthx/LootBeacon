@@ -10,7 +10,7 @@ LootBeacon brings back two classic Tekkub addons — **teksLoot** and **GreedBea
 - **Shift-click** a roll button to skip the "are you sure?" box on Bind on Pickup items
 - **Bind on Pickup** items are marked with a small **BoP** in the corner of their icon
 - Hides the flood of per-player roll messages in chat and prints **one line per item** with the winner
-- Click that line to see **everyone's rolls**; Shift-click it to open Blizzard's Loot Rolls window
+- Click that line to see the **rolls that could have won** (the Need rolls, or the Greed rolls if nobody needed); Shift-click it to open Blizzard's Loot Rolls window at that item
 
 ## ⚙️ Options
 
