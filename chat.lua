@@ -50,8 +50,7 @@ end
 
 -- A bare false means "leave the message exactly as it was"!
 local function Filter(_, _, msg)
-	if Chat.IsRollSpam(msg) then return true end
-	return false
+	return Chat.IsRollSpam(msg)
 end
 
 local filterInstalled = false
@@ -100,11 +99,6 @@ local ROLL_ICONS = {
 	need = "lootroll-icon-need", greed = "lootroll-icon-greed", pass = "lootroll-icon-pass",
 }
 
-local function RollWord(choice)
-	if choice == "need" then return NEED end
-	return GREED
-end
-
 -- {curly} placeholders let translators put the words in whatever order they like!
 local function Fill(template, values)
 	return (template:gsub("{(%a+)}", function(key) return values[key] or "" end))
@@ -122,7 +116,7 @@ function Chat.FormatSummary(record)
 		return Tag("allPassed", LOOT_HISTORY_ALL_PASSED, record) .. " " .. item
 	end
 	local choice = ns.ChoiceForState(winner.state) or "greed"
-	local label = Fill(L["{roll} - {value}"], { roll = RollWord(choice), value = tostring(winner.roll or "?") })
+	local label = Fill(L["{roll} - {value}"], { roll = choice == "need" and NEED or GREED, value = tostring(winner.roll or "?") })
 	return Fill(L["{tag} {name} won {item}"], {
 		tag = Tag(choice, label, record),
 		name = ns.ClassColoredName(winner.playerName, winner.playerClass),
@@ -164,17 +158,16 @@ local function RollLine(roll, choice)
 	return line
 end
 
-function Chat.ShowRollTooltip(encounterID, key)
+-- Click once to look, click again to put it away!
+local function ShowTooltip(key, info, link)
 	local tooltip = ItemRefTooltip
 	if tooltip:IsShown() and shownKey == key then
 		tooltip:Hide()
 		return
 	end
-	local info = C_LootHistory.GetSortedInfoForDrop(encounterID, key)
-	local record = ns.Tracker:GetRecord(key)
 	tooltip:ClearHandlerInfo()
 	tooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
-	tooltip:AddLine(TitleFromLink((info and info.itemHyperlink) or (record and record.link)))
+	tooltip:AddLine(TitleFromLink((info and info.itemHyperlink) or link))
 	if not info then
 		tooltip:AddLine(L["Roll details are no longer available."], 1, 1, 1, true)
 	else
@@ -198,10 +191,85 @@ function Chat.ShowRollTooltip(encounterID, key)
 	shownKey = key
 end
 
+function Chat.ShowRollTooltip(encounterID, key)
+	local record = ns.Tracker:GetRecord(key)
+	ShowTooltip(key, C_LootHistory.GetSortedInfoForDrop(encounterID, key), record and record.link)
+end
+
 ItemRefTooltip:HookScript("OnHide", function() shownKey = nil end)
 
+-- Dress rehearsal! Who rolled what (the first one wins), shaped just like the loot history's own.
+local SAMPLES = {
+	{ itemID = 19019, rolls = { { "Bravo", "ROGUE", "need", 87 }, { "Foxtrot", "WARRIOR", "need", 42 },
+		{ "Delta", "PALADIN", "greed", 95 }, { "Alpha", "MAGE", "pass" } } },
+	{ itemID = 2073, rolls = { { "Alpha", "MAGE", "greed", 64 }, { "Charlie", "DRUID", "greed", 12 },
+		{ "Delta", "PALADIN", "pass" } } },
+	{ itemID = 13136, allPassed = true, rolls = { { "Alpha", "MAGE", "pass" }, { "Bravo", "ROGUE", "pass" },
+		{ "Charlie", "DRUID", "pass" } } },
+	{ itemID = 21615, timedOut = true },
+}
+local SAMPLE_WAIT_SECONDS, SAMPLE_TRIES = 0.2, 10
+local State = Enum.EncounterLootDropRollState
+local CHOICE_STATES = { need = State.NeedMainSpec, greed = State.Greed, pass = State.Pass }
+local sampleInfos = {}
+
+local function SampleInfo(sample)
+	local info = { itemHyperlink = select(2, C_Item.GetItemInfo(sample.itemID)), allPassed = sample.allPassed, rollInfos = {} }
+	for index, roll in ipairs(sample.rolls or {}) do
+		info.rollInfos[index] = {
+			playerName = roll[1], playerClass = roll[2], state = CHOICE_STATES[roll[3]], roll = roll[4],
+			isWinner = index == 1 and not sample.allPassed,
+		}
+	end
+	info.winner = not sample.allPassed and info.rollInfos[1] or nil
+	return info
+end
+
+local function PrintSamples()
+	local frame = Chat.GetOutputFrame()
+	for index, sample in ipairs(SAMPLES) do
+		local info = SampleInfo(sample)
+		sampleInfos[index] = info
+		local record = { key = index, encounterID = "sample", link = info.itemHyperlink, winner = info.winner,
+			allPassed = info.allPassed }
+		if sample.timedOut then
+			record.key = 0
+			frame:AddMessage(Chat.FormatTimeout(record))
+		else
+			frame:AddMessage(Chat.FormatSummary(record))
+		end
+	end
+end
+
+-- Items still on their way? Give them a moment before we go on!
+local function PrintSamplesWhenReady(tries)
+	local waiting = false
+	for _, sample in ipairs(SAMPLES) do
+		if not C_Item.GetItemInfo(sample.itemID) then
+			waiting = true
+			C_Item.RequestLoadItemDataByID(sample.itemID)
+		end
+	end
+	if waiting and tries > 1 then
+		C_Timer.After(SAMPLE_WAIT_SECONDS, function() PrintSamplesWhenReady(tries - 1) end)
+	else
+		PrintSamples()
+	end
+end
+
+-- Show off every kind of summary line, summaries switched on or not!
+function Chat.ShowSamples()
+	PrintSamplesWhenReady(SAMPLE_TRIES)
+end
+
 local function OnSetItemRef(_, link)
-	local encounterID, key = tostring(link):match("^addon:" .. addonName .. ":(%d+):(%d+)$")
+	link = tostring(link)
+	local sample = tonumber(link:match("^addon:" .. addonName .. ":sample:(%d+)$"))
+	if sample then
+		if sampleInfos[sample] then ShowTooltip("sample:" .. sample, sampleInfos[sample]) end
+		return
+	end
+	local encounterID, key = link:match("^addon:" .. addonName .. ":(%d+):(%d+)$")
 	if not encounterID then return end
 	encounterID, key = tonumber(encounterID), tonumber(key)
 	if IsShiftKeyDown() then

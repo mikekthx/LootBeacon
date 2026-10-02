@@ -56,7 +56,7 @@ end
 
 -- Who you gonna call?
 function ns.HandleSlash(msg)
-	local command = (((msg or ""):match("^%s*(%S*)")) or ""):lower()
+	local command = (msg or ""):match("^%s*(%S*)"):lower()
 	if command == "move" then
 		ns.Bars.SetAnchorShown(not ns.Bars.IsAnchorShown())
 	elseif command == "test" then
@@ -67,6 +67,8 @@ function ns.HandleSlash(msg)
 		if showing then
 			ns.Print(L["Showing sample roll bars. Type /lb test again to hide them."])
 		end
+	elseif command == "chat" then
+		ns.Chat.ShowSamples()
 	else
 		Settings.OpenToCategory(ns.settingsCategory:GetID())
 	end

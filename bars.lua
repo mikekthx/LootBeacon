@@ -8,60 +8,43 @@ ns.Bars = Bars
 local GetLootRollTimeLeft = GetLootRollTimeLeft
 local GetTime = GetTime
 
--- Panel layout, in panel units. The panel is Blizzard's own DefaultPanelFlatTemplate --
--- the same metal-framed panel the Loot Rolls window uses.
+-- Measure twice, cut once! Everything's in panel units.
 local PANEL_WIDTH = 330
-local CONTENT_LEFT, CONTENT_RIGHT = 16,
-	14 -- the left metal edge is thicker, just like Blizzard insets its own background
--- Every row keeps the same clear space all round as at its left, about 6 units: the plain top and bottom metal
--- edges are about 5 thick, and the divider rod between rows about 4.
-local HEADER_HEIGHT, EDGE_PADDING = 29, 11 -- room for the title band, or for a plain metal edge
--- Each row: the item icon, then the name above the timer, then a two-by-two grid of roll buttons.
+local CONTENT_LEFT, CONTENT_RIGHT = 16, 14 -- the left metal edge is the thicker one
+local HEADER_HEIGHT, EDGE_PADDING = 29, 11 -- the title band, or a plain metal edge
 local ROW_HEIGHT, ROW_GAP = 44, 17
 local ROW_WIDTH = PANEL_WIDTH - CONTENT_LEFT - CONTENT_RIGHT
-local ICON_SIZE = ROW_HEIGHT -- fills the row, lining up with the top and bottom of the button grid
-local ICON_INSET = (ROW_HEIGHT - ICON_SIZE) / 2
+local ICON_SIZE = ROW_HEIGHT -- as tall as the button grid
 local BUTTON_SIZE, BUTTON_GAP = 21, 2
-local BUTTON_AREA = 2 * BUTTON_SIZE + BUTTON_GAP -- the grid is this wide (and tall)
--- Where each button sits in the grid: column and row, from the top left. The bottom-right corner stays empty.
-local BUTTON_GRID = { need = { 1, 1 }, pass = { 2, 1 }, greed = { 1, 2 } }
-local PASS_NUDGE = 2  -- Pass's art leaves a wide clear margin on its right, so it sits a little further over
-local CONTENT_GAP = 8 -- between the icon, the name and timer, and the button grid
-local NAME_GAP = 2    -- between the name's space and the timer
--- Blizzard's Loot Rolls timer art is 13 tall with its fill inset 2. Ours is thinner and narrower than
--- Blizzard's 238, so its art is drawn in three pieces: rounded ends kept in proportion, and a middle that
--- stretches. TIMER_CAP and TIMER_FILL_CAP are those ends' widths in the art.
+local BUTTON_AREA = 2 * BUTTON_SIZE + BUTTON_GAP
+local BUTTON_GRID = { need = { 1, 1 }, pass = { 2, 1 }, greed = { 1, 2 } } -- column, row; bottom right stays empty
+local PASS_NUDGE = 2 -- Pass's art has a wide margin on its right
+local CONTENT_GAP = 8
+local NAME_GAP = 2
+
+-- Blizzard's timer, on a diet! Rounded ends keep their shape and the middle stretches.
 local TIMER_ART_HEIGHT, TIMER_HEIGHT = 13, 10
 local TIMER_SCALE = TIMER_HEIGHT / TIMER_ART_HEIGHT
 local TIMER_INSET = 2 * TIMER_SCALE
-local TIMER_CAP, TIMER_FILL_CAP = 7, 5
-local TIMER_RAISE = 3 -- just clear of the cut corner at the bottom right of the icon's quality border
--- The divider comes from the objective tracker's header art (300x40): the same metal rod along its top and
--- bottom, with a dark band between that covers the inner half of each. Stitching the top rod's upper half to
--- the bottom rod's lower half makes one clean rod. Values are columns and rows of the art.
+local TIMER_CAP, TIMER_FILL_CAP = 7, 5 -- the ends' widths in the art
+local TIMER_FILL_END = TIMER_FILL_CAP * TIMER_SCALE
+local TIMER_RAISE = 3 -- clears the icon border's cut corner
+
+-- Borrow the quest tracker's header art and stitch its top and bottom rods into one! Columns and rows of the art.
 local ROD_ATLAS, ROD_ART_WIDTH, ROD_ART_HEIGHT = "ui-questtracker-primary-objective-header", 300, 40
-local ROD_LEFT, ROD_CAP = 9.7, 16.45 -- the left-hand diamond, from its tip to where the bar starts
--- The rod fades out across these columns, gone just before its right-hand diamond starts.
-local ROD_FADE = { 200, 277 }
--- The diamond pokes this far out past the row's left end (and its icon), well short of the metal edge.
-local ROD_OVERHANG = 3
-local ROD_UPPER = { 2.9, 7.07 } -- the top rod, from the shadow above it down through its bright highlight
--- The bottom rod, picking up where the top one stops, down through the shadow below it. Its diamonds sit 27.47
--- rows below the top rod's (its bar only 26.93, so the bar comes out a hair thinner): cut anywhere else, the
--- diamonds would repeat or lose a sliver through their middles.
-local ROD_LOWER = { ROD_UPPER[2] + 27.47, 38.6 }
-local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait" -- Blizzard's no-portrait panel frame, as this client draws it
+local ROD_LEFT, ROD_CAP = 9.7, 16.45 -- the left diamond, tip to bar
+local ROD_FADE = { 200, 277 } -- gone before the right diamond starts
+local ROD_OVERHANG = 3 -- past the icon, short of the metal edge
+local ROD_UPPER = { 2.9, 7.07 }
+local ROD_LOWER = { ROD_UPPER[2] + 27.47, 38.6 } -- 27.47 keeps the diamonds whole (the bar is only 26.93 apart)
+
+local BASE_LAYOUT = "ButtonFrameTemplateNoPortrait"
+local BUTTON_ATLAS = "lootroll-toast-icon-" -- then the choice, then its state
 local DEMO_DURATION = 60000
 local MAX_DEMO_ROLLS = 20
 local QUESTION_MARK_ICON = 134400
 
-local BUTTON_ATLAS = "lootroll-toast-icon-" -- Blizzard's own roll-button art: the choice, then its state
-
-local function ChoiceLabel(choice)
-	if choice == "need" then return NEED end
-	if choice == "greed" then return GREED end
-	return PASS
-end
+local CHOICE_LABELS = { need = NEED, greed = GREED, pass = PASS }
 
 local function IneligibleReason(index)
 	if not index or index == 0 then return nil end
@@ -98,11 +81,8 @@ end
 
 -- Same job as Blizzard's own piece setup, plus the option to turn a piece upside down!
 local function SetupPieceVisuals(_, piece, _, pieceLayout)
-	if pieceLayout.flipVertical then
-		piece:SetTexCoord(0, 1, 1, 0)
-	else
-		piece:SetTexCoord(0, 1, 0, 1)
-	end
+	local flip = pieceLayout.flipVertical
+	piece:SetTexCoord(0, 1, flip and 1 or 0, flip and 0 or 1)
 	local info = C_Texture.GetAtlasInfo(pieceLayout.atlas)
 	piece:SetHorizTile(info and info.tilesHorizontally or false)
 	piece:SetVertTile(info and info.tilesVertically or false)
@@ -115,6 +95,14 @@ local function FlippedPiece(from)
 	return { layer = from.layer, atlas = from.atlas, x = from.x, y = from.y and -from.y, flipVertical = true }
 end
 
+-- Give one side of the frame the `from` side's art, flipped over if asked!
+local function SetSide(layout, base, side, from, flip)
+	for _, part in ipairs({ "LeftCorner", "RightCorner", "Edge" }) do
+		local piece = base[from .. part]
+		layout[side .. part] = flip and FlippedPiece(piece) or piece
+	end
+end
+
 -- The title band only shows while you're moving the panel, on whichever side stays pinned!
 local function BuildFrameLayout(header)
 	local base = NineSliceLayouts[BASE_LAYOUT]
@@ -124,40 +112,23 @@ local function BuildFrameLayout(header)
 		LeftEdge = base.LeftEdge,
 		RightEdge = base.RightEdge,
 	}
-	if header == "top" then
-		layout.TopLeftCorner, layout.TopRightCorner, layout.TopEdge = base.TopLeftCorner, base.TopRightCorner,
-			base.TopEdge
-	else
-		layout.TopLeftCorner = FlippedPiece(base.BottomLeftCorner)
-		layout.TopRightCorner = FlippedPiece(base.BottomRightCorner)
-		layout.TopEdge = FlippedPiece(base.BottomEdge)
-	end
-	if header == "bottom" then
-		layout.BottomLeftCorner = FlippedPiece(base.TopLeftCorner)
-		layout.BottomRightCorner = FlippedPiece(base.TopRightCorner)
-		layout.BottomEdge = FlippedPiece(base.TopEdge)
-	else
-		layout.BottomLeftCorner, layout.BottomRightCorner, layout.BottomEdge = base.BottomLeftCorner,
-			base.BottomRightCorner, base.BottomEdge
-	end
+	local top, bottom = header == "top", header == "bottom"
+	SetSide(layout, base, "Top", top and "Top" or "Bottom", not top)
+	SetSide(layout, base, "Bottom", bottom and "Top" or "Bottom", bottom)
 	return layout
 end
 
 local header      -- "top", "bottom" or nil
 local frameLayout -- the layout ApplyFrameStyle last put on the panel
 
--- Blizzard's corners are tall, so on a short panel the top pair would poke out past the bottom edge and
--- vice versa. Trim each one to meet its partner halfway, keeping the end that sits on the panel's edge.
--- Never let one reach past CORNER_REACH, either: the corner art has a notch in its post about 44 units in,
--- and the plain edge art fills the post just as well from there.
+-- Blizzard's corners are tall, so on a short panel trim each pair to meet halfway!
 local CORNER_SIDES = {
 	TopLeftCorner = "top",
 	TopRightCorner = "top",
 	BottomLeftCorner = "bottom",
-	BottomRightCorner =
-	"bottom"
+	BottomRightCorner = "bottom",
 }
-local CORNER_REACH = 42
+local CORNER_REACH = 42 -- the post has a notch about 44 in; the plain edge takes over from there
 
 local function FitCorners(height)
 	for name, side in pairs(CORNER_SIDES) do
@@ -234,7 +205,7 @@ local function UpdateTimer(row)
 	local width = math.max(1, (row.timer:GetWidth() - 2 * TIMER_INSET) * fraction)
 	row.timer.fill:SetWidth(width)
 	-- Nearly empty? Then the fill's two ends share what's left.
-	local cap = math.min(TIMER_FILL_CAP * TIMER_SCALE, width / 2)
+	local cap = math.min(TIMER_FILL_END, width / 2)
 	row.timer.fillArt.left:SetWidth(cap)
 	row.timer.fillArt.right:SetWidth(cap)
 end
@@ -250,8 +221,7 @@ local function OnRollClick(button)
 		ns.Print(L["Sample roll: nothing was rolled."])
 		return
 	end
-	-- Shift means "yes, I'm sure" -- we'll answer the game's "are you sure?" when it asks! A plain click
-	-- takes that back. Noted before rolling, in case the game asks straight away.
+	-- Shift means "yes, I'm sure!" Noted before rolling, in case the game asks straight away.
 	pendingConfirms[record.rollID] = (IsShiftKeyDown() and button.choice ~= "pass") and button.rollType or nil
 	RollOnLoot(record.rollID, button.rollType)
 end
@@ -272,15 +242,12 @@ confirmWatcher:SetScript("OnEvent", OnConfirmRequest)
 local function OnRollEnter(button)
 	local record = button.row.record
 	GameTooltip:SetOwner(button, "ANCHOR_RIGHT")
-	GameTooltip_SetTitle(GameTooltip, ChoiceLabel(button.choice))
+	GameTooltip_SetTitle(GameTooltip, CHOICE_LABELS[button.choice])
 	if not button:IsEnabled() and button.reason then
 		GameTooltip_AddErrorLine(GameTooltip, button.reason, true)
 	end
 	for _, player in ipairs(record and record.choices[button.choice] or {}) do
 		GameTooltip:AddLine(ns.ClassColoredName(player.name, player.class))
-	end
-	if button.choice ~= "pass" then
-		GameTooltip:AddLine(L["Shift-click to skip the confirmation."], 0.5, 0.5, 0.5, true)
 	end
 	GameTooltip:Show()
 end
@@ -303,10 +270,8 @@ local function SmoothScaling(texture)
 	texture:SetTexelSnappingBias(0)
 end
 
--- An atlas's outermost pixels blend with whatever Blizzard packed next to it on the sheet, leaving a faint
--- light line round the art. Shrunk, the game draws from smaller copies of the sheet where that reaches
--- further in, so trim a texel and a half (measured in-game: 1 still shows the line, 2 crops the art).
-local ATLAS_EDGE_TRIM = 1.5
+-- Shave off the atlas neighbours bleeding in round the edges!
+local ATLAS_EDGE_TRIM = 1.5 -- texels; measured in-game: 1 still bleeds, 2 crops the art
 
 local function TrimAtlasEdges(texture)
 	local info = C_Texture.GetAtlasInfo(texture:GetAtlas())
@@ -339,7 +304,7 @@ local function CreateRollButton(row, choice)
 	return button
 end
 
--- One piece of the divider rod: `left` to `right` and `rows` of the header art, at the art's own size.
+-- A slice of the rod, at the art's own size!
 local function RodPiece(divider, left, right, rows)
 	local piece = divider:CreateTexture(nil, "BACKGROUND")
 	piece:SetAtlas(ROD_ATLAS)
@@ -349,8 +314,7 @@ local function RodPiece(divider, left, right, rows)
 	return piece
 end
 
--- One half of the divider rod, its `edge` ("BOTTOM" above the divider's centre, "TOP" below) on that centre:
--- the diamond, the plain bar, then the fade away to nothing, one after the other.
+-- Diamond, bar, then fade away to nothing! `edge` is the side that sits on the divider's centre.
 local function RodHalf(divider, rows, edge)
 	local half = {
 		cap = RodPiece(divider, ROD_LEFT, ROD_CAP, rows),
@@ -364,20 +328,24 @@ local function RodHalf(divider, rows, edge)
 	return half
 end
 
--- Draws `atlas` over `region` (on `owner`, in `layer`) as a left end and a right end, each `cap` units
--- of the art wide and scaled with the timer, with only the middle stretched. Returns the three textures.
+local function Slice(owner, layer, atlas, left, right)
+	local slice = owner:CreateTexture(nil, layer)
+	slice:SetAtlas(atlas)
+	slice:SetTexCoord(left, right, 0, 1)
+	SmoothScaling(slice) -- snapped separately, the pieces could part by a pixel
+	return slice
+end
+
+-- Two ends that keep their shape and a middle that stretches, all scaled with the timer!
 local function ThreeSlice(owner, region, layer, atlas, cap)
 	local info = C_Texture.GetAtlasInfo(atlas)
 	local edge = cap / (info and info.width or TIMER_ART_HEIGHT)
 	cap = cap * TIMER_SCALE
-	local slices = {}
-	for name, coords in pairs({ left = { 0, edge }, middle = { edge, 1 - edge }, right = { 1 - edge, 1 } }) do
-		local slice = owner:CreateTexture(nil, layer)
-		slice:SetAtlas(atlas)
-		slice:SetTexCoord(coords[1], coords[2], 0, 1)
-		SmoothScaling(slice) -- snapped separately, the pieces could part by a pixel
-		slices[name] = slice
-	end
+	local slices = {
+		left = Slice(owner, layer, atlas, 0, edge),
+		middle = Slice(owner, layer, atlas, edge, 1 - edge),
+		right = Slice(owner, layer, atlas, 1 - edge, 1),
+	}
 	slices.left:SetPoint("TOPLEFT", region, "TOPLEFT")
 	slices.left:SetPoint("BOTTOMLEFT", region, "BOTTOMLEFT")
 	slices.left:SetWidth(cap)
@@ -393,12 +361,11 @@ local function CreateRow()
 	local row = CreateFrame("Frame", nil, panel)
 	row:SetSize(ROW_WIDTH, ROW_HEIGHT)
 
-	-- A real item button: icon plus quality border, just like the character sheet!
-	-- Layout sizes and places it, on whole screen pixels.
+	-- A real item button, quality border and all, just like the character sheet!
 	local icon = CreateFrame("ItemButton", nil, row)
 	icon:ClearNormalTexture()
 	icon.row = row
-	-- Lay the art exactly over the button, rather than centring its own 37x37 on a half pixel.
+	-- Lay the art right over the button, not its own 37x37 centred on a half pixel!
 	icon.icon:ClearAllPoints()
 	icon.icon:SetAllPoints(icon)
 	icon.IconBorder:ClearAllPoints()
@@ -427,7 +394,7 @@ local function CreateRow()
 	end)
 	row.icon = icon
 
-	-- The roll buttons, two by two at the right-hand end. Each keeps its own corner, shown or not.
+	-- Roll buttons, two by two on the right!
 	row.buttons = {}
 	for _, choice in ipairs(ns.CHOICES) do
 		local button = CreateRollButton(row, choice)
@@ -442,15 +409,13 @@ local function CreateRow()
 		row.buttons[choice] = button
 	end
 
-	-- The same three-piece timer Blizzard's Loot Rolls window uses, thinned down and run along the bottom:
-	-- always the full width between the icon and the buttons.
+	-- The timer runs along the bottom, between the icon and the buttons!
 	local timer = CreateFrame("Frame", nil, row)
 	timer:SetHeight(TIMER_HEIGHT)
 	timer:SetPoint("BOTTOMLEFT", icon, "BOTTOMRIGHT", CONTENT_GAP, TIMER_RAISE)
 	timer:SetPoint("BOTTOMRIGHT", row, "BOTTOMRIGHT", -(BUTTON_AREA + CONTENT_GAP), TIMER_RAISE)
 	timer.background = ThreeSlice(timer, timer, "BACKGROUND", "lootroll-timer-background", TIMER_CAP)
-	-- Fill inset like Blizzard's, so it stays inside the track! timer.fill is just its outline; UpdateTimer
-	-- sizes it and the art follows.
+	-- Inset like Blizzard's, so the fill stays inside the track! UpdateTimer sizes it and the art follows.
 	local fillInfo = C_Texture.GetAtlasInfo("lootroll-timer-fill")
 	timer.fill = timer:CreateTexture(nil, "ARTWORK")
 	timer.fill:SetHeight((fillInfo and fillInfo.height or TIMER_ART_HEIGHT - 4) * TIMER_SCALE)
@@ -460,7 +425,7 @@ local function CreateRow()
 	timer.border = ThreeSlice(timer, timer, "OVERLAY", "lootroll-timer-border", TIMER_CAP)
 	row.timer = timer
 
-	-- The name fills the space above the timer: up to two lines, centred so a short name sits close to it.
+	-- Up to two lines of name above the timer!
 	row.name = row:CreateFontString(nil, "ARTWORK", "GameFontNormal")
 	row.name:SetJustifyH("LEFT")
 	row.name:SetJustifyV("MIDDLE")
@@ -469,7 +434,7 @@ local function CreateRow()
 	row.name:SetPoint("TOPLEFT", icon, "TOPRIGHT", CONTENT_GAP, 0)
 	row.name:SetPoint("BOTTOMRIGHT", timer, "TOPRIGHT", 0, NAME_GAP)
 
-	-- The metal rod between rows; its two halves meet on the divider's centre, which Layout puts in the gap.
+	-- A metal rod between rows, its two halves meeting in the middle!
 	row.divider = CreateFrame("Frame", nil, row)
 	row.divider:SetSize(ROW_WIDTH, 1)
 	row.divider.upper = RodHalf(row.divider, ROD_UPPER, "BOTTOM")
@@ -554,9 +519,7 @@ function Layout()
 		for index = #records, 1, -1 do ordered[#ordered + 1] = records[index] end
 	end
 
-	-- Everything below lands on whole screen pixels, redone every layout since what counts as a whole pixel
-	-- changes with the scale. Otherwise each row rounds differently: thin borders come out thicker on one
-	-- side, and one divider's highlight looks brighter than the next.
+	-- Snap everything to whole pixels, every time, since the scale moves them. Every row looks the same!
 	local top = header == "top" and HEADER_HEIGHT or EDGE_PADDING
 	for index, record in ipairs(ordered) do
 		local row = barsByRecord[record]
@@ -569,7 +532,7 @@ function Layout()
 		PixelUtil.SetPoint(row, "TOPLEFT", panel, "TOPLEFT", CONTENT_LEFT, -(top + (index - 1) * (ROW_HEIGHT + ROW_GAP)))
 		PixelUtil.SetSize(row.icon, ICON_SIZE, ICON_SIZE)
 		row.icon:ClearAllPoints()
-		PixelUtil.SetPoint(row.icon, "TOPLEFT", row, "TOPLEFT", 0, -ICON_INSET)
+		PixelUtil.SetPoint(row.icon, "TOPLEFT", row, "TOPLEFT", 0, 0)
 		row.divider:ClearAllPoints()
 		PixelUtil.SetPoint(row.divider, "CENTER", row, "TOP", 0, -(ROW_HEIGHT + ROW_GAP / 2))
 		row.divider:SetShown(index < #ordered)
@@ -578,9 +541,8 @@ function Layout()
 
 	local count = #ordered
 	if count > 0 then
-		local topRoom = header == "top" and HEADER_HEIGHT or EDGE_PADDING
-		local bottomRoom = header == "bottom" and HEADER_HEIGHT or EDGE_PADDING
-		local height = topRoom + count * ROW_HEIGHT + (count - 1) * ROW_GAP + bottomRoom
+		local bottom = header == "bottom" and HEADER_HEIGHT or EDGE_PADDING
+		local height = top + count * ROW_HEIGHT + (count - 1) * ROW_GAP + bottom
 		panel:SetHeight(height)
 		FitCorners(height)
 	end
@@ -682,8 +644,7 @@ panel:SetScript("OnMouseUp", function(_, button)
 	end
 end)
 
--- Pretend rolls, for lining things up without a group! Each is a real item; the game fills in the rest.
--- Something for every row style: each quality, a two-line name and Bind on Pickup.
+-- Pretend rolls, for lining things up without a group! Every quality, a two-line name and Bind on Pickup.
 local DEMO_ITEMS = {
 	{
 		itemID = 2073, -- Dwarven Hatchet
@@ -713,7 +674,7 @@ local DEMO_ITEMS = {
 	},
 }
 
--- Copy the item's details in from the client's item cache. False if the client hasn't got it yet.
+-- Raid the item cache! False if the client hasn't got it yet.
 local function FillDemoRecord(record)
 	local name, link, quality, _, _, _, _, _, _, texture, _, _, _, bindType = C_Item.GetItemInfo(record.itemID)
 	if not name then return false end
@@ -755,7 +716,7 @@ local function BuildDemoRecords(count)
 	return records
 end
 
--- The server answered about an item we asked for; fill in any sample still waiting on it.
+-- Special delivery for any sample still waiting on its item!
 local itemLoader = CreateFrame("Frame")
 itemLoader:RegisterEvent("ITEM_DATA_LOAD_RESULT")
 itemLoader:SetScript("OnEvent", function(_, _, itemID, success)
@@ -816,7 +777,7 @@ ns.Tracker:RegisterCallback("Updated", function(record)
 	if row then UpdateRow(row, record) end
 end)
 ns.Tracker:RegisterCallback("Closed", function(record)
-	-- Roll IDs come round again, so never hand a promise to a later roll that gets this one's number!
+	-- Roll IDs get recycled, so don't pass this promise on to the next roll with this number!
 	if record.rollID then pendingConfirms[record.rollID] = nil end
 	Layout()
 end)

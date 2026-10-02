@@ -56,8 +56,10 @@ function Tracker:RegisterCallback(event, fn)
 end
 
 local function Fire(event, record)
-	for _, fn in ipairs(Tracker.callbacks[event] or {}) do
-		fn(record)
+	local listeners = Tracker.callbacks[event]
+	if not listeners then return end
+	for index = 1, #listeners do
+		listeners[index](record)
 	end
 end
 
@@ -71,15 +73,18 @@ function Tracker:GetRecordByRollID(rollID)
 	end
 end
 
+-- Oldest first, and no cutting in line!
+local function OldestFirst(a, b)
+	if a.startTime ~= b.startTime then return a.startTime < b.startTime end
+	return tostring(a.key) < tostring(b.key)
+end
+
 function Tracker:GetOpenRecords()
 	local list = {}
 	for _, record in pairs(self.records) do
 		if not record.closed then list[#list + 1] = record end
 	end
-	table.sort(list, function(a, b)
-		if a.startTime ~= b.startTime then return a.startTime < b.startTime end
-		return tostring(a.key) < tostring(b.key)
-	end)
+	table.sort(list, OldestFirst)
 	return list
 end
 
@@ -139,26 +144,26 @@ local function StartWatchdog(record, timeLeftMs)
 	end)
 end
 
-local function AllEncounterIDs()
-	local ids = {}
-	for _, info in ipairs(C_LootHistory.GetAllEncounterInfos() or {}) do
-		ids[#ids + 1] = info.encounterID
-	end
-	return ids
-end
-
-local function FindEncounter(record, encounterIDs)
-	for _, encounterID in ipairs(encounterIDs) do
-		for _, drop in ipairs(C_LootHistory.GetSortedDropsForEncounter(encounterID) or {}) do
-			if drop.lootListKey == record.key then
-				record.encounterID = encounterID
-				return true
-			end
+-- Which fight did this drop come from? Check the one we're told about...
+local function FindInEncounter(record, encounterID)
+	for _, drop in ipairs(C_LootHistory.GetSortedDropsForEncounter(encounterID) or {}) do
+		if drop.lootListKey == record.key then
+			record.encounterID = encounterID
+			return true
 		end
 	end
 	return false
 end
 
+-- ...or all of them!
+local function FindEncounter(record)
+	for _, info in ipairs(C_LootHistory.GetAllEncounterInfos() or {}) do
+		if FindInEncounter(record, info.encounterID) then return true end
+	end
+	return false
+end
+
+-- Count the crowd, then call the winner!
 local function RefreshFromHistory(record)
 	if not record.encounterID then return end
 	local info = C_LootHistory.GetSortedInfoForDrop(record.encounterID, record.key)
@@ -197,17 +202,17 @@ local function AddRecord(record, timeLeftMs)
 		RetryItemInfo(record)
 	end
 	if not record.encounterID then
-		FindEncounter(record, AllEncounterIDs())
+		FindEncounter(record)
 	end
 	StartWatchdog(record, timeLeftMs)
 	Fire("Started", record)
 	RefreshFromHistory(record)
 end
 
--- Back from a /reload mid-roll? Match each roll to its history entry by item AND end time! The history can
--- get there first and start a record of its own with no roll window; the roll takes that one over.
+-- Back from a /reload mid-roll? Match by item AND end time, taking over any record the history started first!
 local function MatchDrop(link, expectedEndMs)
-	for _, encounterID in ipairs(AllEncounterIDs()) do
+	for _, info in ipairs(C_LootHistory.GetAllEncounterInfos() or {}) do
+		local encounterID = info.encounterID
 		for _, drop in ipairs(C_LootHistory.GetSortedDropsForEncounter(encounterID) or {}) do
 			local key = drop.lootListKey
 			local existing = Tracker.records[key]
@@ -235,7 +240,7 @@ end
 
 function handlers.LOOT_HISTORY_UPDATE_ENCOUNTER(encounterID)
 	for _, record in pairs(Tracker.records) do
-		if not record.encounterID and FindEncounter(record, { encounterID }) then
+		if not record.encounterID and FindInEncounter(record, encounterID) then
 			RefreshFromHistory(record)
 		end
 	end
@@ -270,8 +275,8 @@ function handlers.CANCEL_LOOT_ROLL(rollID)
 end
 
 function handlers.CANCEL_ALL_LOOT_ROLLS()
-	for _, record in ipairs(Tracker:GetOpenRecords()) do
-		Close(record)
+	for _, record in pairs(Tracker.records) do
+		Close(record) -- already closed? Close shrugs it off
 	end
 end
 
